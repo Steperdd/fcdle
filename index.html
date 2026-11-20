@@ -1077,9 +1077,11 @@ const POOL = {"n":142659,"ps":["00","01","02","03","04","05","06","07","08","09"
   function renderCollection() {
     renderAchGrid();
     var co = collected(), have = Object.keys(co.c).length;
-    $('#collSummary').textContent = have + ' of ' + FC.BADGES.length + ' badges found. Rarest first. A badge counts when it scored on one of your daily rolls.';
+    $('#collSummary').textContent = have + ' of ' + FC.BADGES.length + ' badges found. One of a kind badges come first, then the rest rarest first. A badge counts when it scored on one of your daily rolls.';
     var list = FC.BADGES.map(function (b) { var p = DATA.probs[b.id] || 0; return { b: b, p: p, t: b.special ? FC.SPECIAL_TIER : FC.badgeTier(p) }; });
-    list.sort(function (x, y) { return x.p - y.p || x.b.name.localeCompare(y.b.name); });
+    // creator codes first, then the other one-of-a-kind badges, then everything else rarest first
+    var grp = function (x) { return x.b.special ? 0 : SOLO[x.b.id] ? 1 : 2; };
+    list.sort(function (x, y) { return grp(x) - grp(y) || x.p - y.p || x.b.name.localeCompare(y.b.name); });
     $('#collGrid').innerHTML = list.map(function (x) {
       var n = co.c[x.b.id] || 0;
       return '<div class="tile tier-' + x.t.id + (n ? '' : ' locked') + '"><span class="chip">' + x.t.name + '</span><strong>' + esc(x.b.name) + '</strong><small>' + esc(x.b.desc) + '</small><small>' + oddsText({ id: x.b.id, p: x.p, special: x.b.special }) + (n ? ' · found ' + n + (n === 1 ? ' time' : ' times') : ' · not found yet') + '</small></div>';
