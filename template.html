@@ -446,7 +446,8 @@ const POOL = /*__POOL__*/;
     return p ? '<div class="who"><strong>' + esc(pname(p)) + '</strong><span>#' + fmtN(p.r) + ' on the VR leaderboard · ' + fmtN(p.v) + ' VR</span></div>' : '';
   }
   var SOLO = {}; (DATA.solo || []).forEach(function (id) { SOLO[id] = 1; });   // badges only one racer in the list can score
-  function oddsText(b) { return b.special || SOLO[b.id] ? 'one of a kind' : oneIn(b.p); }
+  /* Rarity is shown by the tier chip; the only extra label is for badges just one racer can earn. */
+  function oddsText(b) { return b.special || SOLO[b.id] ? 'one of a kind' : ''; }
   function markGold(root, v) {
     if (v.sc.kept.some(function (b) { return b.tier === 'creator'; })) { var el = root.querySelector('.hero-digits'); if (el) el.classList.add('gold'); }
   }
@@ -493,10 +494,10 @@ const POOL = /*__POOL__*/;
     h += '</div><div class="ticks" aria-hidden="true">';
     ticks.forEach(function (t) { if (t !== 95) h += '<span style="left:' + t + '%">' + t + '</span>'; });
     h += '</div></div><div class="pills">';
-    sc.kept.forEach(function (b) { h += '<span class="pill tier-' + b.tier + '" title="' + esc(b.tierName + ': ' + b.desc + ', ' + oddsText(b)) + '">' + esc(b.name) + '<em>+' + fmtN(b.ep) + '</em></span>'; });
+    sc.kept.forEach(function (b) { h += '<span class="pill tier-' + b.tier + '" title="' + esc(b.tierName + ': ' + b.desc + (oddsText(b) ? ', ' + oddsText(b) : '')) + '">' + esc(b.name) + '<em>+' + fmtN(b.ep) + '</em></span>'; });
     h += '</div><details class="more"><summary>Badge details</summary><ul class="badges">';
     sc.kept.forEach(function (b) {
-      h += '<li class="tier-' + b.tier + '"><span class="chip">' + b.tierName + '</span><div class="b-main"><strong>' + esc(b.name) + '</strong><span>' + esc(b.desc) + '</span></div><div class="b-side"><span class="ep">+' + b.ep + ' EP</span><span class="odds">' + oddsText(b) + '</span></div></li>';
+      h += '<li class="tier-' + b.tier + '"><span class="chip">' + b.tierName + '</span><div class="b-main"><strong>' + esc(b.name) + '</strong><span>' + esc(b.desc) + '</span></div><div class="b-side"><span class="ep">+' + b.ep + ' EP</span>' + (oddsText(b) ? '<span class="odds">' + oddsText(b) + '</span>' : '') + '</div></li>';
     });
     h += '</ul>';
     if (sc.shadowed.length) {
@@ -749,7 +750,7 @@ const POOL = /*__POOL__*/;
     list.sort(function (x, y) { return grp(x) - grp(y) || x.p - y.p || x.b.name.localeCompare(y.b.name); });
     $('#collGrid').innerHTML = list.map(function (x) {
       var n = co.c[x.b.id] || 0;
-      return '<div class="tile tier-' + x.t.id + (n ? '' : ' locked') + '"><span class="chip">' + x.t.name + '</span><strong>' + esc(x.b.name) + '</strong><small>' + esc(x.b.desc) + '</small><small>' + oddsText({ id: x.b.id, p: x.p, special: x.b.special }) + (n ? ' · found ' + n + (n === 1 ? ' time' : ' times') : ' · not found yet') + '</small></div>';
+      return '<div class="tile tier-' + x.t.id + (n ? '' : ' locked') + '"><span class="chip">' + x.t.name + '</span><strong>' + esc(x.b.name) + '</strong><small>' + esc(x.b.desc) + '</small><small>' + [oddsText({ id: x.b.id, p: x.p, special: x.b.special }), n ? 'found ' + n + (n === 1 ? ' time' : ' times') : 'not found yet'].filter(Boolean).join(' · ') + '</small></div>';
     }).join('');
   }
 
@@ -1203,7 +1204,7 @@ const POOL = /*__POOL__*/;
     var ga = earnedAchievements(), na = Object.keys(ga).length;
     h += '<h3 class="sub">Achievements</h3><p>' + (na ? ACHIEVEMENTS.filter(function (a) { return ga[a.id]; }).map(function (a) { return a.icon + ' <b>' + esc(a.name) + '</b>'; }).join(' · ') : '<span class="muted">None yet.</span>') + ' <span class="muted">' + na + '/' + ACHIEVEMENTS.length + '</span></p>';
     h += '<h3 class="sub">Best roll</h3><p><span class="chip tier-' + best.nt.id + '">' + best.nt.name + '</span> <b>' + fmtN(best.ep) + ' EP</b> · ' + pretty(best.fc) + (best.p ? ' · ' + esc(pname(best.p)) : '') + ' · <span class="muted">Day ' + dayNo(best.date) + '</span></p>';
-    if (rarest) h += '<h3 class="sub">Rarest badge</h3><p><span class="chip tier-' + rarest.b.tier + '">' + rarest.b.tierName + '</span> <b>' + esc(rarest.b.name) + '</b> · ' + oddsText(rarest.b) + ' · <span class="muted">Day ' + dayNo(rarest.date) + '</span></p>';
+    if (rarest) h += '<h3 class="sub">Rarest badge</h3><p><span class="chip tier-' + rarest.b.tier + '">' + rarest.b.tierName + '</span> <b>' + esc(rarest.b.name) + '</b>' + (oddsText(rarest.b) ? ' · ' + oddsText(rarest.b) : '') + ' · <span class="muted">Day ' + dayNo(rarest.date) + '</span></p>';
     h += '<h3 class="sub">Rolls by rarity</h3><div class="bars">' + TIER_ORDER.map(function (id) {
       var n = tiers[id] || 0; return '<div class="bar-row tier-' + id + '"><span>' + TIER_NAMES[id] + '</span><div class="trk"><i style="width:' + (n / played * 100).toFixed(1) + '%"></i></div><em>' + n + '</em></div>';
     }).join('') + '</div>';
