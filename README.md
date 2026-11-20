@@ -7,7 +7,7 @@ Unofficial fan project inspired by [RNGdle](https://www.rngdle.com). Not affilia
 ## How it works
 
 - **Daily roll:** your player ID and the UTC date pick one of the ~142,000 racers in `fc/`. Reloading gives the same racer; tomorrow gives a new one.
-- **Badges and EP:** 101 badges, each worth `round(100 / odds)` EP (capped at 100 million). Only the highest level in a badge family scores. Odds come from scoring 4 million simulated friend codes (`sim.js`), and racer badges (rank, VR) use the real racer list.
+- **Badges and EP:** 102 badges, each worth `round(100 / odds)` EP (capped at 100 million). Only the highest level in a badge family scores. Odds come from scoring 4 million simulated friend codes (`sim.js`), and racer badges (rank, VR) use the real racer list.
 - **Code rarity:** a code's EP total is compared with the simulated codes to give a tier from Common up to Mythic.
 - **Extras:** streaks, achievements, a stats page, a Compare tab for pasted results, backup and restore with a save code, and skip, sound and celebration effects on the roll.
 
