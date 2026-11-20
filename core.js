@@ -214,6 +214,7 @@
   add('vr50k', 'VR 50K', 'vr', 2, 'the racer has 50,000 VR or more', function (c) { return c.vr >= 50000; });
   add('vr100k', 'VR 100K', 'vr', 3, 'the racer has 100,000 VR or more', function (c) { return c.vr >= 100000; });
   add('vr10k', 'Fresh Start', 'vrexact', 1, 'the racer has exactly 10,000 VR, the starting amount', function (c) { return c.vr === 10000; });
+  add('travis', 'Travis', 'travis', 1, 'contains 90210', function (c) { return has(c, '90210'); });
   add('over9000', 'Over 9000', 'over9000', 1, 'contains 9001', function (c) { return has(c, '9001'); });
   add('bond', 'Double-Oh Seven', 'bond', 1, 'contains 007', function (c) { return has(c, '007'); });
   add('cc150', '150cc', 'cc150', 1, 'contains 150, the fastest engine class', function (c) { return has(c, '150'); });
