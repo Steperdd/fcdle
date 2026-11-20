@@ -418,7 +418,7 @@ const POOL = /*__POOL__*/;
     return shardCache[prefix];
   }
   function toPlayer(row) { return { r: row[0], f: row[1], n: row[2], v: row[3] }; }
-  function slim(p) { return p ? { r: p.r, n: p.n, v: p.v, f: p.f } : null; }
+  function slim(p) { return p && !p.rand ? { r: p.r, n: p.n, v: p.v, f: p.f } : null; }
   var MIISET = {}; POOL.m.forEach(function (f) { MIISET[f] = 1; });
   function pickIndex(seed, date) { return xmur3(seed + '|' + date) % POOL.n; }
   function playerAt(i) {
@@ -426,7 +426,20 @@ const POOL = /*__POOL__*/;
     for (var j = 0; j < POOL.cs.length; j++) { if (i < cum[j] + POOL.cs[j]) { k = j; break; } }
     return loadShard(POOL.ps[k]).then(function (rows) { return toPlayer(rows[i - cum[k]]); });
   }
-  function rollFor(seed, date) { return playerAt(pickIndex(seed, date)); }
+  /* Daily roll: 1 day in RACER_DEN is a real racer from the list; otherwise a random legal friend code (random profile ID + region checksum). */
+  function rollFor(seed, date) {
+    var k = seed + '|' + date;
+    if (xmur3(k + '|mode') % FC.RACER_DEN === 0) return playerAt(pickIndex(seed, date));
+    var game = FC.REGIONS[xmur3(k + '|region') % FC.REGIONS.length][0];
+    return Promise.resolve({ r: 0, n: '', v: 0, f: FC.build(xmur3(k + '|pid'), game), rand: true });
+  }
+  /* Older saves picked every day from the racer list, so those still verify. */
+  function verifyRoll(seed, date, fc) {
+    return rollFor(seed, date).then(function (p) {
+      if (p.f === fc) return p;
+      return playerAt(pickIndex(seed, date)).then(function (q) { return q.f === fc ? q : null; });
+    }).catch(function () { return null; });
+  }
   function lookupFC(s) {
     if (POOL.ps.indexOf(s.slice(0, 2)) < 0) return Promise.resolve(null);
     return loadShard(s.slice(0, 2)).then(function (rows) {
@@ -442,7 +455,8 @@ const POOL = /*__POOL__*/;
     if (p.f && MIISET[p.f]) return '<img class="mii" src="miis_fc/' + p.f + '.webp" width="112" height="112" alt="' + esc(pname(p)) + '’s Mii">';
     return '<div class="mii ph" role="img" aria-label="No Mii saved for this racer">' + SIL + '</div>';
   }
-  function whoHTML(p) {
+  function whoHTML(p, rand) {
+    if (!p) return rand ? '<div class="who"><strong>Random legal code</strong><span>Not tied to a leaderboard racer</span></div>' : '';
     return p ? '<div class="who"><strong>' + esc(pname(p)) + '</strong><span>#' + fmtN(p.r) + ' on the VR leaderboard · ' + fmtN(p.v) + ' VR</span></div>' : '';
   }
   var SOLO = {}; (DATA.solo || []).forEach(function (id) { SOLO[id] = 1; });   // badges only one racer in the list can score
@@ -613,7 +627,7 @@ const POOL = /*__POOL__*/;
     var card = $('#todayCard'), d = state.days[shownDate];
     if (!d) {
       card.innerHTML = miiHTML(null) + plateHTML(null, 'Day ' + dayNo(shownDate)) +
-        '<p class="tag">One roll per day. One real racer. What will yours be?</p>' +
+        '<p class="tag">One roll per day. One friend code. What will yours be?</p>' +
         '<button class="gen" id="rollBtn" type="button">Roll</button><p class="note" id="rollNote">Reloading the page gives you the same code.</p>' +
         '<div class="opts"><label><input type="checkbox" id="fastBox"' + (state.fast ? ' checked' : '') + '> Skip the animation</label><label><input type="checkbox" id="soundBox"' + (state.sound === false ? '' : ' checked') + '> Sound</label></div>' +
         (Object.keys(state.days).length ? '' : '<div class="howto"><strong>How to play</strong><ol><li>Roll once a day. You get one real Mario Kart Wii friend code from the Retro Rewind leaderboard.</li><li>Patterns in the digits, and facts about the racer, earn badges. Each badge adds EP, and rarer ones add far more.</li><li>Come back every day to build a streak, and use Compare to see whose roll was best.</li></ol></div>');
@@ -622,7 +636,7 @@ const POOL = /*__POOL__*/;
       $('#soundBox').addEventListener('change', function () { state.sound = this.checked; save(); if (this.checked) tone(660, 0, 0.12, 0.05); });
     } else {
       var v = scoreView(d.fc, d.p);
-      card.innerHTML = (d.p ? miiHTML(d.p) : '') + plateHTML(d.fc, 'Day ' + dayNo(shownDate)) + whoHTML(d.p) + resultHTML(d.fc, v) +
+      card.innerHTML = (d.p ? miiHTML(d.p) : '') + plateHTML(d.fc, 'Day ' + dayNo(shownDate)) + whoHTML(d.p, true) + resultHTML(d.fc, v) +
         '<p class="pct" id="pctNote" role="status" aria-live="polite"></p><div class="row"><button class="btn" data-share type="button">Copy result</button><button class="btn" data-compare type="button">Compare with friends</button></div><p class="note" id="submitNote"></p>' +
         '<textarea class="share" data-sharearea hidden readonly rows="4" aria-label="Result text"></textarea>';
       attachShare(card, shareText(d.fc, shownDate, v, d.p));
@@ -768,7 +782,7 @@ const POOL = /*__POOL__*/;
       '<h3 class="sub">Code rarity</h3><p style="margin-bottom:8px">Your EP total is compared with all simulated codes to place it in a tier.</p><div class="tbl"><table><thead><tr><th>Tier</th><th>Where you land</th></tr></thead><tbody>';
     nt.forEach(function (t) { h += '<tr><td><span class="chip tier-' + t[0].toLowerCase() + '">' + t[0] + '</span></td><td>' + t[1] + '</td></tr>'; });
     h += '</tbody></table></div>' +
-      '<h3 class="sub">The daily roll</h3><p>Every UTC day you get one roll: a real friend code picked from all ' + fmtN(POOL.n) + ' racers on the Retro Rewind (RWFC) VR leaderboard. Players the leaderboard marks as suspicious are left out. The pick comes from your player ID and the date, so reloading gives the same racer and tomorrow gives a new one. The list is a snapshot from November 20, 2026, so ranks and VR may have moved since. Only 200 of the top racers have a Mii saved here; everyone else gets a silhouette.</p>' +
+      '<h3 class="sub">The daily roll</h3><p>Every UTC day you get one roll. Most days it is a random legal friend code (any 12-digit code with a valid checksum). About 1 day in 4 it is a real friend code picked from all ' + fmtN(POOL.n) + ' racers on the Retro Rewind (RWFC) VR leaderboard, and only those days show a name, rank, VR and Mii. Players the leaderboard marks as suspicious are left out. The pick comes from your player ID and the date, so reloading gives the same code and tomorrow gives a new one. The racer list is a snapshot from November 20, 2026, so ranks and VR may have moved since. Only 200 of the top racers have a Mii saved here; everyone else gets a silhouette.</p>' +
       '<h3 class="sub">Names and comparing</h3><p>Pick any name on the Today tab. It’s saved on this device and added to your copied result. To compare with friends without signing in, paste their copied results into the Compare tab. Each score is worked out again from the friend code, so an edited EP doesn’t change the ranking.</p>' +
       '<h3 class="sub">Racer badges</h3><p>Some badges depend on who you rolled, not on the digits: a top 1,000, 100, 10 or #1 spot on the VR leaderboard, 25,000, 50,000 or 100,000 VR, and exactly 10,000 VR (Fresh Start). Their odds are the share of real racers who qualify. They count when you roll the racer, or when you score a code that belongs to one.</p>' +
       '<h3 class="sub">Saving and settings</h3><p>Everything is saved in this browser. The Stats tab has a save code you can copy and restore on another device, and restoring checks each roll against the daily pick so a code can’t be edited into better rolls. Before you roll you can turn on Skip the animation and turn Sound off. Epic, Anomaly and Mythic rolls get a glow and confetti.</p>' +
@@ -892,7 +906,7 @@ const POOL = /*__POOL__*/;
         cands.push({ id: r.id, date: date, s: p.s, seed: e.seed });
       });
     });
-    await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; }, function () {}); }));
+    await Promise.all(cands.map(function (c) { return verifyRoll(c.seed, c.date, c.s).then(function (pl) { c.pl = pl; }); }));
     var by = {};
     cands.forEach(function (c) {
       if (!c.pl || c.pl.f !== c.s) return;
@@ -1008,12 +1022,12 @@ const POOL = /*__POOL__*/;
     var msg = $('#cmpMsg'), list = $('#cmpList');
     if (!items.length) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = text.trim() ? 'No results found. Paste messages that start with “FCdle”.' : 'Paste at least one result first.'; return; }
     await Promise.all(items.map(function (x) { return lookupFC(x.s).then(function (p) { x.pl = p; }); }));
-    var skipped = items.filter(function (x) { return !x.pl; }).length;
-    items = items.filter(function (x) { return x.pl; });   // only codes that belong to a real leaderboard racer can be rolled
-    if (!items.length) { list.innerHTML = ''; msg.className = 'msg err'; msg.textContent = 'None of those codes belong to a racer on the leaderboard, so they can’t be real rolls.'; return; }
+    var skipped = items.filter(function (x) { var p = FC.parse(x.s); return !p.ok || !FC.checksumRegions(p.s).length; }).length;
+    items = items.filter(function (x) { var p = FC.parse(x.s); return p.ok && FC.checksumRegions(p.s).length; });   // any legal friend code can be rolled
+    if (!items.length) { list.innerHTML = ''; msg.className = 'msg err'; msg.textContent = 'None of those are legal friend codes, so they can’t be real rolls.'; return; }
     items.forEach(function (x) { x.sc = FC.score(x.s, DATA.probs, racerCtx(x.pl)); });
     items.sort(function (a, b) { return b.sc.total - a.sc.total; });
-    msg.className = 'msg'; msg.textContent = items.length + (items.length === 1 ? ' result' : ' results') + ', highest EP first.' + (skipped ? ' Skipped ' + skipped + ' with a code that isn’t a leaderboard racer.' : '');
+    msg.className = 'msg'; msg.textContent = items.length + (items.length === 1 ? ' result' : ' results') + ', highest EP first.' + (skipped ? ' Skipped ' + skipped + ' with an illegal friend code.' : '');
     list.innerHTML = items.map(function (x, i) {
       var top = x.sc.kept[0] ? x.sc.kept[0].name : '';
       return '<li' + (x.mine ? ' class="me"' : '') + '><span class="pos">' + (i + 1) + '</span><div><strong>' + esc(x.name) + '</strong><span class="muted small" style="display:block">' + (x.pl ? esc(pname(x.pl)) + ' · ' : '') + esc(pretty(x.s)) + (top ? ' · ' + esc(top) : '') + '</span></div><b style="font-variant-numeric:tabular-nums">' + fmtN(x.sc.total) + ' EP</b><span></span></li>';
@@ -1036,7 +1050,7 @@ const POOL = /*__POOL__*/;
         cands.push({ id: r.id, date: date, s: p.s, seed: e.seed, t: t });
       });
     });
-    await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; }, function () {}); }));
+    await Promise.all(cands.map(function (c) { return verifyRoll(c.seed, c.date, c.s).then(function (pl) { c.pl = pl; }); }));
     return cands.filter(function (c) { return c.pl && c.pl.f === c.s; });
   }
   function ago(ms, date) {
@@ -1162,7 +1176,7 @@ const POOL = /*__POOL__*/;
       cands.push({ date: date, fc: fc, seed: seed, t: typeof tm === 'number' ? tm : 0 });
     });
     saveMsg('Checking your rolls...');
-    var okc = await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; return pl.f === c.fc; }, function () { return false; }); }));
+    var okc = await Promise.all(cands.map(function (c) { return verifyRoll(c.seed, c.date, c.fc).then(function (pl) { c.pl = pl; return !!pl; }); }));
     var fresh = !Object.keys(state.days).length, added = 0, had = 0, bad = obj.d.length - okc.filter(Boolean).length;
     cands.forEach(function (c, i) {
       if (!okc[i]) return;

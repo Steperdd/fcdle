@@ -328,6 +328,7 @@
   }
 
   var api = {
+    REGIONS: REGIONS, RACER_DEN: 4, chkFor: chkFor,
     BADGES: B, BADGE_TIERS: BADGE_TIERS, SPECIAL_TIER: SPECIAL_TIER, epFor: epFor, P_FLOOR: P_FLOOR, NUMBER_TIERS: NUMBER_TIERS, md5: md5, checksumRegions: checksumRegions, build: build,
     matchAll: matchAll, score: score, rank: rank, numberTier: numberTier, badgeTier: badgeTier, parse: parse, isPrime: isPrime
   };

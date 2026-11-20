@@ -1,6 +1,6 @@
 # FCdle
 
-A daily Mario Kart Wii game. Every day you roll one real friend code from the Retro Rewind (RWFC) VR leaderboard and score it for rare patterns: repeated digits, meme numbers, palindromes, and facts about the racer such as leaderboard rank and VR. Collect badges, build a streak, and send your result to friends to see who rolled best.
+A daily Mario Kart Wii game. Every day you roll one legal friend code (usually random, about 1 in 4 a real racer from the Retro Rewind (RWFC) VR leaderboard) and score it for rare patterns: repeated digits, meme numbers, palindromes, and facts about the racer such as leaderboard rank and VR. Collect badges, build a streak, and send your result to friends to see who rolled best.
 
 Unofficial fan project inspired by [RNGdle](https://www.rngdle.com). Not affiliated with RNGdle, Retro Rewind or Nintendo.
 
