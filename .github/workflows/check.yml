@@ -1,0 +1,21 @@
+name: Check build
+
+# Fails if index.html is out of date with the source files, so the live site can't drift.
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unit checks and simulation
+        run: node sim.js
+      - name: Rebuild index.html
+        run: node build.js
+      - name: Fail if index.html or probs.json changed
+        run: git diff --exit-code -- index.html probs.json

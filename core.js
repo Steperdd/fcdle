@@ -220,6 +220,9 @@
   add('vr10k', 'Fresh Start', 'vrexact', 1, 'the racer has exactly 10,000 VR, the starting amount', function (c) { return c.vr === 10000; });
   add('travis', 'Travis', 'travis', 1, 'contains 90210', function (c) { return has(c, '90210'); });
   add('mineagain', 'Mine Again', 'mineagain', 1, 'contains 1738', function (c) { return has(c, '1738'); });
+  add('calcflip', 'Calculator Flip', 'calcflip', 1, 'contains 8008135', function (c) { return has(c, '8008135'); });
+  add('y2012', 'Mayan Calendar', 'y2012', 1, 'contains 2012', function (c) { return has(c, '2012'); });
+  add('y1999', 'Party Like It\'s 1999', 'y1999', 1, 'contains 1999', function (c) { return has(c, '1999'); });
   add('freestyle', 'Freestyle', 'freestyle', 1, 'contains 1400999', function (c) { return has(c, '1400999'); });
   add('nineten', '9+10', 'nineten', 1, 'contains 21', function (c) { return has(c, '21'); });
   add('over9000', 'Over 9000', 'over9000', 1, 'contains 9001', function (c) { return has(c, '9001'); });
