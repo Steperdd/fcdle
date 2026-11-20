@@ -221,6 +221,8 @@ footer { color: #6b6b73; font-size: 12px; text-align: center; max-width: 60ch; m
 .bar-row .trk { height:10px; border-radius:6px; background:var(--surface2); overflow:hidden; }
 .bar-row .trk i { display:block; height:100%; background:var(--c, #bebebe); border-radius:6px; min-width:0; }
 .bar-row em { font-style:normal; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+.filters { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0; }
+.filters input, .filters select { flex:1 1 140px; min-width:0; background:var(--card2,#17171c); color:inherit; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; font-size:14px; }
 .hist { list-style:none; margin:0; padding:0; }
 .hist li { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
 .hist li:first-child { border-top:0; }
@@ -1531,6 +1533,7 @@ const POOL = {"n":142659,"ps":["00","01","02","03","04","05","06","07","08","09"
   /* ---------- Stats tab ---------- */
   var TIER_ORDER = ['mythic', 'anomaly', 'epic', 'rare', 'uncommon', 'common', 'trash'];
   var TIER_NAMES = { mythic: 'Mythic', anomaly: 'Anomaly', epic: 'Epic', rare: 'Rare', uncommon: 'Uncommon', common: 'Common', trash: 'Trash' };
+  var histFilter = { pat: '', badge: '', tier: '', kind: '' };
   function renderStatsTab() {
     var el = $('#statsCard'), keys = Object.keys(state.days).sort();
     if (!keys.length) { el.innerHTML = '<h2>Your stats</h2><p class="muted">Roll today and your stats start here: streaks, best roll, rarest badge and a history of every day.</p>'; return; }
@@ -1543,7 +1546,7 @@ const POOL = {"n":142659,"ps":["00","01","02","03","04","05","06","07","08","09"
         btiers[b.id] = 1;
         if (!b.special && (!rarest || b.p < rarest.b.p)) rarest = { b: b, date: k };
       });
-      hist.push({ date: k, fc: d.fc, p: d.p, ep: v.sc.total, nt: v.nt });
+      hist.push({ date: k, fc: d.fc, p: d.p, ep: v.sc.total, nt: v.nt, ids: v.sc.kept.concat(v.sc.shadowed || []).map(function (b) { return b.id; }) });
     });
     var played = keys.length, avg = Math.round(total / played), have = Object.keys(btiers).length;
     var h = '<h2>Your stats</h2><div class="kpis">' + [
@@ -1562,10 +1565,35 @@ const POOL = {"n":142659,"ps":["00","01","02","03","04","05","06","07","08","09"
       if (!all.length) return '';
       return '<div class="bar-row tier-' + bt.id + '"><span>' + bt.name + '</span><div class="trk"><i style="width:' + (got / all.length * 100).toFixed(1) + '%"></i></div><em>' + got + '/' + all.length + '</em></div>';
     }).join('') + '</div>';
-    h += '<h3 class="sub">Recent rolls</h3><ol class="hist" reversed>' + hist.slice(-14).reverse().map(function (x) {
-      return '<li><span>' + (TIER_SQUARE[x.nt.id] || '') + '</span><div>' + (x.p ? esc(pname(x.p)) : pretty(x.fc)) + '<small>Day ' + dayNo(x.date) + ' · ' + pretty(x.fc) + '</small></div><b>' + fmtN(x.ep) + ' EP</b></li>';
-    }).join('') + '</ol>';
+    // roll history with pattern filters
+    var byId = {}; FC.BADGES.forEach(function (b) { byId[b.id] = b; });
+    var seen = {}; hist.forEach(function (x) { x.ids.forEach(function (id) { seen[id] = 1; }); });
+    var opts = Object.keys(seen).map(function (id) { return byId[id]; }).filter(Boolean).sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+    h += '<h3 class="sub">Roll history</h3><div class="filters">' +
+      '<input id="fPat" type="text" inputmode="numeric" maxlength="12" placeholder="Digits, e.g. 420 or 6?7 (? = any digit)" aria-label="Filter by digits" value="' + esc(histFilter.pat) + '">' +
+      '<select id="fBadge" aria-label="Filter by pattern"><option value="">Any pattern</option>' + opts.map(function (b) { return '<option value="' + b.id + '"' + (histFilter.badge === b.id ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('') + '</select>' +
+      '<select id="fTier" aria-label="Filter by rarity"><option value="">Any rarity</option>' + TIER_ORDER.map(function (id) { return '<option value="' + id + '"' + (histFilter.tier === id ? ' selected' : '') + '>' + TIER_NAMES[id] + '</option>'; }).join('') + '</select>' +
+      '<select id="fKind" aria-label="Filter by code type"><option value="">Random and racers</option><option value="racer"' + (histFilter.kind === 'racer' ? ' selected' : '') + '>Real racers</option><option value="rand"' + (histFilter.kind === 'rand' ? ' selected' : '') + '>Random codes</option></select>' +
+      '</div><p class="muted small" id="fCount"></p><ol class="hist" id="histList"></ol>';
     el.innerHTML = h;
+    function drawHist() {
+      var pat = histFilter.pat.replace(/[^0-9?]/g, ''), re = pat ? new RegExp(pat.replace(/\?/g, '\\d')) : null;
+      var rows2 = hist.filter(function (x) {
+        if (re && !re.test(x.fc)) return false;
+        if (histFilter.badge && x.ids.indexOf(histFilter.badge) < 0) return false;
+        if (histFilter.tier && x.nt.id !== histFilter.tier) return false;
+        if (histFilter.kind === 'racer' && !x.p) return false;
+        if (histFilter.kind === 'rand' && x.p) return false;
+        return true;
+      }).reverse(), active = re || histFilter.badge || histFilter.tier || histFilter.kind, shown = active ? rows2 : rows2.slice(0, 14);
+      $('#fCount').textContent = active ? rows2.length + (rows2.length === 1 ? ' roll matches' : ' rolls match') + (shown.length > 60 ? ', showing 60' : '') : 'Showing your latest 14 rolls. Use the filters to search all ' + hist.length + '.';
+      $('#histList').innerHTML = shown.slice(0, 60).map(function (x) {
+        return '<li><span>' + (TIER_SQUARE[x.nt.id] || '') + '</span><div>' + (x.p ? esc(pname(x.p)) : pretty(x.fc)) + '<small>Day ' + dayNo(x.date) + ' · ' + pretty(x.fc) + '</small></div><b>' + fmtN(x.ep) + ' EP</b></li>';
+      }).join('') || '<li class="muted">No rolls match these filters.</li>';
+    }
+    drawHist();
+    $('#fPat').addEventListener('input', function () { histFilter.pat = this.value; drawHist(); });
+    [['fBadge', 'badge'], ['fTier', 'tier'], ['fKind', 'kind']].forEach(function (p) { $('#' + p[0]).addEventListener('change', function () { histFilter[p[1]] = this.value; drawHist(); }); });
   }
 
   /* ---------- Hall of fame ---------- */
