@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FCdle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: near-black stage, slim top bar, one huge centered code, glowing gradient-edged roll button, tinted pill badges. */
+:root {
+  --bg: #0a0a0a;
+  --surface: #141417;
+  --surface2: #1b1b20;
+  --ink: #fafafa;
+  --muted: #9a9a9a;
+  --line: #26262c;
+  --bar: #1a1820;
+  --accent: #d44dba;
+  --grad: linear-gradient(100deg, #f46444, #d44dba);
+  --t-trash: #77777f; --t-common: #b4b4bb; --t-uncommon: #4ade80; --t-rare: #60a5fa;
+  --t-epic: #c084fc; --t-anomaly: #fb923c; --t-mythic: #fb7185;
+  --body: "Inter", "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; }
+p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; padding: 6px 20px; min-height: 52px; background: var(--bar); background: oklch(0.178 0.014 295); }
+.logo { font-size: 18px; font-weight: 700; color: #f0f0f0; text-decoration: none; letter-spacing: -0.01em; }
+.bar nav { display: flex; gap: 2px; margin-left: auto; overflow-x: auto; }
+.bar nav button { background: none; border: 0; cursor: pointer; padding: 10px 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; position: relative; }
+.bar nav button:hover { color: var(--ink); }
+.bar nav button[aria-selected="true"] { color: var(--ink); }
+.bar nav button[aria-selected="true"]::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--grad); }
+.clock { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; white-space: nowrap; }
+.clock strong { color: var(--ink); font-weight: 600; margin-left: 6px; }
+
+.shell { max-width: 900px; margin: 0 auto; padding: 56px 16px 56px; display: flex; flex-direction: column; gap: 28px; }
+.panel { display: none; flex-direction: column; gap: 28px; }
+.panel.on { display: flex; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.card h2, .label { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.card h2 { margin-bottom: 14px; }
+.sub { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+.hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; width: 100%; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.hero-digits { font-weight: 700; font-size: clamp(28px, 8.2vw, 72px); line-height: 1; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; white-space: nowrap;
+  background: linear-gradient(90deg, #bebebe 0%, #bebebe 40%, #e6e6e6 50%, #bebebe 60%, #bebebe 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-digits.final { background: none; color: var(--ink); }
+.hero-digits i { font-style: normal; opacity: 0.4; padding: 0 0.06em; }
+.tag { color: var(--muted); font-size: 18px; }
+.gen { font-family: var(--body); font-weight: 900; font-size: 28px; line-height: 1; letter-spacing: 3px; text-transform: uppercase; color: #fff; cursor: pointer;
+  padding: 18px 32px; width: min(320px, 100%); border: 2px solid transparent; border-radius: 8px;
+  background: linear-gradient(#0a0a0a, #0a0a0a) padding-box, var(--grad) border-box;
+  box-shadow: 0 0 14px rgba(244, 100, 68, 0.32), 0 0 36px rgba(212, 77, 186, 0.15); transition: box-shadow 0.2s; }
+.gen:hover:not(:disabled) { box-shadow: 0 0 18px rgba(244, 100, 68, 0.5), 0 0 48px rgba(212, 77, 186, 0.28); }
+.gen:disabled { opacity: 0.6; cursor: default; }
+.note { color: var(--muted); font-size: 13px; }
+.statline { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 26px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
+.statline b { color: var(--ink); font-size: 15px; font-weight: 700; margin-right: 6px; letter-spacing: 0; }
+
+.mii { width: 112px; height: 112px; border-radius: 20px; border: 2px solid var(--line); background: linear-gradient(145deg, #26262d, #141417); object-fit: contain; box-shadow: 0 0 28px rgba(212, 77, 186, 0.18); }
+.mii.ph { display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 700; color: #bebebe; }
+.mii.ph svg { width: 56px; height: 56px; }
+.who { display: flex; flex-direction: column; gap: 2px; }
+.who strong { font-size: 18px; font-weight: 700; }
+.who span { color: var(--muted); font-size: 13px; }
+.av { width: 28px; height: 28px; border-radius: 8px; vertical-align: middle; margin-right: 8px; background: var(--surface2); }
+.btn { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
+
+.result { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
+.tile-ep { min-width: 128px; height: 128px; padding: 0 20px; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 2px solid color-mix(in srgb, var(--c) 75%, transparent); background: linear-gradient(145deg, color-mix(in srgb, var(--c) 30%, var(--surface)), var(--surface) 90%);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--c) 28%, transparent); }
+.tile-ep { max-width: 100%; box-sizing: border-box; }
+.tile-ep.lg b { font-size: 40px; }
+.tile-ep.xl b { font-size: 31px; }
+.tile-ep b { font-size: 52px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile-ep small { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); margin-top: 4px; }
+.verdict { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 12px; font-size: 14px; color: var(--muted); }
+.chip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); }
+.tier-creator { --c: #ffc21a; }
+.hero-digits.final.gold { background: linear-gradient(90deg, #ffe58a, #ffb81c 50%, #ffe58a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tier-trash { --c: var(--t-trash); } .tier-common { --c: var(--t-common); } .tier-uncommon { --c: var(--t-uncommon); }
+.tier-rare { --c: var(--t-rare); } .tier-epic { --c: var(--t-epic); } .tier-anomaly { --c: var(--t-anomaly); } .tier-mythic { --c: var(--t-mythic); }
+.gauge { width: min(420px, 100%); }
+.meter { position: relative; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.meter .fill { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 999px; }
+.meter i { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--bg); }
+.ticks { position: relative; height: 18px; margin-top: 4px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ticks span { position: absolute; transform: translateX(-50%); }
+.pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 680px; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; padding: 4px 11px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 38%, transparent); }
+.pill em { font-style: normal; font-size: 11px; opacity: 0.75; font-variant-numeric: tabular-nums; }
+details.more { width: 100%; max-width: 680px; text-align: left; }
+details.more summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; text-align: center; padding: 6px; }
+ul.badges { list-style: none; margin: 10px 0 0; padding: 0; }
+ul.badges li { display: grid; grid-template-columns: 96px 1fr auto; gap: 4px 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+ul.badges li:first-child { border-top: 0; }
+.b-main strong { font-weight: 600; }
+.b-main span { display: block; color: var(--muted); font-size: 13px; }
+.b-side { text-align: right; font-variant-numeric: tabular-nums; }
+.b-side .ep { display: block; font-weight: 700; }
+.b-side .odds { color: var(--muted); font-size: 12px; }
+details.more ul.shadow { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+
+.field { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+.field input { flex: 1 1 260px; min-width: 0; box-sizing: border-box; max-width: min(420px, 100%); font-weight: 700; font-size: 24px; letter-spacing: 0.06em; text-align: center; font-variant-numeric: tabular-nums; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.field input::placeholder { color: #4a4a52; }
+.field input[aria-invalid="true"] { border-color: var(--t-anomaly); }
+.msg { min-height: 20px; font-size: 13px; color: var(--muted); text-align: center; }
+.msg.err { color: var(--t-anomaly); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface2); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.tile.locked { background: transparent; border-style: dashed; }
+.tile.locked strong { color: var(--muted); }
+.tile strong { font-weight: 600; }
+.tile small { color: var(--muted); }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line); font-size: 14px; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border-top: 0; }
+.tbl { overflow-x: auto; }
+.card p + p { margin-top: 8px; }
+ol.board { list-style: none; margin: 0; padding: 0; }
+ol.board li { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+ol.board li:first-child { border-top: 0; }
+ol.board .pos { font-weight: 800; color: var(--muted); }
+ol.board li.me { background: rgba(244, 100, 68, 0.09); margin: 0 -10px; padding-left: 10px; padding-right: 10px; border-radius: 8px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.card-head h2 { margin: 0; }
+.fbtn { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.fbtn:hover { color: var(--ink); border-color: #4a4a52; }
+.fbtn.on { color: var(--ink); background: var(--surface2); }
+.head-segs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.friendbox { margin: 4px 0 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); display: grid; gap: 10px; }
+.friendbox label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.friendbox .line { display: flex; gap: 8px; }
+.friendbox input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg, #0b0b0d); color: var(--ink); font-size: 13px; font-family: inherit; }
+.friendbox[hidden] { display: none; }
+.namebar { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+.namebar strong { color: var(--ink); }
+.namebar input { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; width: 170px; max-width: 100%; box-sizing: border-box; }
+.namebar [hidden] { display: none; }
+.cmp textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; resize: vertical; margin: 10px 0; }
+.cmp .row { display: flex; gap: 8px; margin-bottom: 8px; }
+.post { border: 1px solid color-mix(in srgb, var(--c) 32%, var(--line)); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 14%, #141418), #141418 70%); }
+.post-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.post-name { font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c); font-size: 15px; overflow-wrap: anywhere; }
+.post-time { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.post-mid { display: flex; align-items: center; gap: 14px; margin: 10px 0 12px; flex-wrap: wrap; }
+.post-digits { font-weight: 800; font-size: 22px; letter-spacing: 0.06em; padding: 10px 14px; border-radius: 10px; color: var(--c); border: 2px solid color-mix(in srgb, var(--c) 70%, transparent); background: color-mix(in srgb, var(--c) 12%, #1a1a20); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.post-meta .chip { display: inline-block; margin-bottom: 4px; }
+.post-ep { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.post-pills { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fpill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+.more { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.row-end { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.heart { background: none; border: 0; cursor: pointer; color: var(--muted); font-size: 15px; padding: 2px 4px; line-height: 1; font-variant-numeric: tabular-nums; }
+.heart:hover { color: var(--ink); } .heart.on { color: #fb7185; }
+.heart small { font-size: 11px; margin-left: 3px; }
+.thread { margin: -4px 0 12px 22px; padding-left: 18px; border-left: 1px solid var(--line); display: grid; gap: 10px; padding-top: 12px; }
+.subcard { background: var(--surface2); border-radius: 10px; padding: 10px 14px; }
+.subcard h4 { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); }
+.subcard.gold { background: rgba(255, 194, 26, 0.1); }
+.subcard.gold h4 { color: #ffc21a; margin: 0; }
+.subcard .items { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+ol.board li.idle { opacity: 0.55; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: none; border: 0; padding: 6px 14px; cursor: pointer; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface2); color: var(--ink); }
+textarea.share { width: 100%; max-width: 420px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 8px; }
+footer { color: #6b6b73; font-size: 12px; text-align: center; max-width: 60ch; margin: 0 auto; }
+@media (max-width: 560px) {
+  .bar { padding: 6px 12px; }
+  .bar nav { order: 3; width: 100%; margin-left: -12px; }
+  .clock { margin-left: auto; }
+  .shell { padding-top: 36px; }
+  .tag { font-size: 16px; }
+  .gen { font-size: 24px; }
+  ul.badges li { grid-template-columns: 1fr auto; }
+  ul.badges li .chip { justify-self: start; grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+.streakbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:4px 12px; padding:10px 16px; border:1px solid var(--line); border-radius:999px; background:var(--surface); font-size:14px; }
+.streakbar b { font-size:18px; }
+.streakbar.hot { border-color: color-mix(in srgb, #f46444 55%, transparent); background: color-mix(in srgb, #f46444 9%, var(--surface)); }
+.streakbar .dim { color: var(--muted); font-size:13px; }
+.pct { font-size:14px; color:var(--muted); margin:0; text-align:center; }
+.pct b { color:var(--ink); }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+.kpi { border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--surface2); display:flex; flex-direction:column; gap:2px; }
+.kpi b { font-size:22px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.kpi span { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+.bars { display:flex; flex-direction:column; gap:8px; }
+.bar-row { display:grid; grid-template-columns:96px 1fr 44px; gap:10px; align-items:center; font-size:13px; }
+.bar-row .trk { height:10px; border-radius:6px; background:var(--surface2); overflow:hidden; }
+.bar-row .trk i { display:block; height:100%; background:var(--c, #bebebe); border-radius:6px; min-width:0; }
+.bar-row em { font-style:normal; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+.hist { list-style:none; margin:0; padding:0; }
+.hist li { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+.hist li:first-child { border-top:0; }
+.hist small { color:var(--muted); display:block; }
+.hist b { font-variant-numeric:tabular-nums; }
+.hof { margin-top:16px; }
+.hof h3 { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:18px 0 6px; }
+.hof h3:first-of-type { margin-top:4px; }
+
+.ach-banner { display:none; text-align:center; padding:10px 16px; border:1px solid color-mix(in srgb, #f4c430 55%, transparent); border-radius:12px; background:color-mix(in srgb, #f4c430 10%, var(--surface)); font-size:14px; }
+.ach-banner.on { display:block; }
+.tile.ach { border-color: color-mix(in srgb, #f4c430 45%, transparent); }
+.tile.ach.locked { border-color: var(--line); }
+.mine { display:flex; flex-direction:column; gap:10px; }
+.mine textarea { min-height:140px; }
+.mine .row { display:flex; flex-wrap:wrap; gap:8px; }
+.steps { margin:0; padding-left:18px; color:var(--muted); font-size:13px; display:flex; flex-direction:column; gap:2px; }
+
+.howto { text-align:left; max-width:460px; margin:4px auto 0; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--surface); font-size:14px; color:var(--muted); }
+.howto strong { color:var(--ink); display:block; margin-bottom:6px; }
+.howto ol { margin:0; padding-left:18px; display:flex; flex-direction:column; gap:4px; }
+
+.opts { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 18px; font-size:13px; color:var(--muted); }
+.opts label { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+.result.fx { animation: fxglow 2.4s ease-out 1; }
+@keyframes fxglow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 0%, transparent); } 25% { box-shadow: 0 0 46px 6px color-mix(in srgb, var(--c) 55%, transparent); } 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 0%, transparent); } }
+.backup textarea { width:100%; box-sizing:border-box; }
+.backup .row { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="#today">FCdle</a>
+  <nav role="tablist" aria-label="Sections">
+    <button role="tab" id="t-today" data-tab="today" aria-selected="true" aria-controls="p-today">Today</button>
+    <button role="tab" id="t-check" data-tab="check" aria-selected="false" aria-controls="p-check">Score a code</button>
+    <button role="tab" id="t-collection" data-tab="collection" aria-selected="false" aria-controls="p-collection">Badges</button>
+    <button role="tab" id="t-stats" data-tab="stats" aria-selected="false" aria-controls="p-stats">Stats</button>
+    <button role="tab" id="t-compare" data-tab="compare" aria-selected="false" aria-controls="p-compare">Compare</button>
+    <button role="tab" id="t-rules" data-tab="rules" aria-selected="false" aria-controls="p-rules">Rules</button>
+  </nav>
+  <div class="clock" title="Time until the next roll (UTC)"><span id="dayLabel">#1</span><strong id="countdown">--:--:--</strong></div>
+</header>
+<div class="shell">
+  <main>
+    <section class="panel on" id="p-today" role="tabpanel" aria-labelledby="t-today">
+      <div class="namebar" id="nameBar">
+        <span id="nameShow"></span>
+        <button class="fbtn" id="nameEdit" type="button">Choose a name</button>
+        <span id="nameForm" hidden><input id="nameInput" maxlength="20" autocomplete="off" spellcheck="false" aria-label="Your name" placeholder="Your name"> <input id="namePw" type="password" autocomplete="off" aria-label="Password for this name" placeholder="Password" hidden> <button class="fbtn on" id="nameSave" type="button">Save</button></span>
+        <span class="msg" id="nameMsg" role="status" aria-live="polite" style="flex-basis:100%;text-align:center;margin:0"></span>
+      </div>
+      <div class="streakbar" id="streakBar"></div>
+      <div class="ach-banner" id="achBanner" role="status" aria-live="polite"></div>
+      <div class="hero" id="todayCard"></div>
+      <div class="statline" id="stats"></div>
+    </section>
+
+    <section class="panel" id="p-check" role="tabpanel" aria-labelledby="t-check">
+      <div class="hero">
+        <p class="tag">Type or paste any 12-digit Mario Kart Wii friend code.</p>
+        <div class="field">
+          <input id="fcInput" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="14" aria-label="Friend code" aria-describedby="fcMsg" placeholder="0000-0000-0000">
+        </div>
+        <p class="msg" id="fcMsg" role="status" aria-live="polite"></p>
+      </div>
+      <div class="hero" id="checkCard"></div>
+    </section>
+
+    <section class="panel" id="p-collection" role="tabpanel" aria-labelledby="t-collection">
+      <div class="card">
+        <h2>Badge collection</h2>
+        <h3 class="sub" style="margin-top:0">Achievements</h3>
+        <p class="muted small" id="achSummary" style="margin-bottom:10px"></p>
+        <div class="grid" id="achGrid"></div>
+        <h3 class="sub">Badges</h3>
+        <p class="muted small" id="collSummary" style="margin-bottom:14px"></p>
+        <div class="grid" id="collGrid"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-stats" role="tabpanel" aria-labelledby="t-stats">
+      <div class="card" id="statsCard"></div>
+      <div class="card backup" id="backupCard">
+        <h2>Back up your progress</h2>
+        <p class="muted small">Your rolls, streak and name are saved only in this browser, so clearing browser data or switching device loses them. Copy your save code somewhere safe, then paste it into Restore on the new device.</p>
+        <textarea id="saveOut" readonly rows="3" aria-label="Your save code"></textarea>
+        <div class="row"><button class="btn" id="saveCopy" type="button">Copy save code</button></div>
+        <textarea id="saveIn" rows="3" placeholder="Paste a save code here to restore it" aria-label="Save code to restore" spellcheck="false"></textarea>
+        <div class="row"><button class="btn" id="saveRestore" type="button">Restore</button></div>
+        <p class="msg" id="saveMsg" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="p-feed" role="tabpanel" aria-labelledby="t-feed">
+      <div class="card">
+        <div class="card-head"><h2>Feed</h2></div>
+        <p class="msg" id="feedMsg" role="status" aria-live="polite"></p>
+        <div id="feedList"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-compare" role="tabpanel" aria-labelledby="t-compare">
+      <div class="card mine" id="mineCard"></div>
+      <div class="card" id="boardCard" hidden>
+        <div class="card-head">
+          <h2>Leaderboard</h2>
+          <div class="head-segs">
+            <div class="seg" role="group" aria-label="Who to show">
+              <button type="button" id="fEveryone" aria-pressed="true">Everyone</button>
+              <button type="button" id="fFriends" aria-pressed="false">Friends</button>
+            </div>
+            <div class="seg" role="group" aria-label="Leaderboard range">
+              <button type="button" id="bToday" aria-pressed="true">Today</button>
+              <button type="button" id="bAll" aria-pressed="false">All time</button>
+            </div>
+          </div>
+        </div>
+        <div class="friendbox" id="friendBox" hidden>
+          <div><label for="myIdField">Your player ID</label><div class="line"><input id="myIdField" readonly><button class="btn" id="copyId" type="button">Copy</button></div></div>
+          <div><label for="addIdField">Add a friend by player ID</label><div class="line"><input id="addIdField" autocomplete="off" spellcheck="false" placeholder="Paste a friend's player ID"><button class="btn" id="addFriend" type="button">Add</button></div></div>
+          <p class="msg" id="friendMsg" role="status" aria-live="polite" style="margin:0"></p>
+        </div>
+        <p class="msg" id="boardMsg" role="status" aria-live="polite"></p>
+        <ol class="board" id="boardList"></ol>
+      </div>
+      <div class="card hof" id="hofCard" hidden></div>
+      <div class="card cmp" id="compareCard" style="margin-top:16px">
+        <div class="card-head"><h2>Compare with friends</h2></div>
+        <p class="muted small">No sign-in needed. Paste the results your friends send you, then rank them against yours. Scores are worked out again from each friend code, so the EP in a pasted message doesn’t count.</p>
+        <textarea id="cmpIn" rows="6" placeholder="Paste results here" aria-label="Pasted results"></textarea>
+        <div class="row"><button class="btn" id="cmpGo" type="button">Rank them</button><button class="btn" id="cmpClear" type="button">Clear</button></div>
+        <p class="msg" id="cmpMsg" role="status" aria-live="polite"></p>
+        <ol class="board" id="cmpList"></ol>
+      </div>
+    </section>
+
+    <section class="panel" id="p-rules" role="tabpanel" aria-labelledby="t-rules">
+      <div class="card" id="rulesCard"></div>
+    </section>
+  </main>
+
+  <footer>Unofficial fan project inspired by RNGdle, not affiliated with RNGdle, Retro Rewind (RWFC) or Nintendo. Racer names, friend codes and Miis come from the public RWFC VR leaderboard (a snapshot from November 20, 2026; Miis for 200 top racers only). Badges, EP values and odds are this game's own.</footer>
+</div>
+
+<script>
+/* RNGdle-style friend code scoring engine (unofficial). Pure functions, no DOM. */
+(function (root) {
+  'use strict';
+
+  /* ---------- MD5 (for the Wii friend code checksum) ---------- */
+  function md5(bytes) {
+    var K = new Uint32Array(64);
+    var S = [7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21];
+    for (var i = 0; i < 64; i++) K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) >>> 0;
+    var len = bytes.length;
+    var n = (((len + 8) >>> 6) + 1) << 6;
+    var buf = new Uint8Array(n);
+    buf.set(bytes);
+    buf[len] = 0x80;
+    var dv = new DataView(buf.buffer);
+    dv.setUint32(n - 8, (len * 8) >>> 0, true);
+    dv.setUint32(n - 4, Math.floor((len * 8) / 4294967296), true);
+    var a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+    for (var o = 0; o < n; o += 64) {
+      var M = new Uint32Array(16);
+      for (var j = 0; j < 16; j++) M[j] = dv.getUint32(o + j * 4, true);
+      var A = a0, B = b0, C = c0, D = d0;
+      for (var k = 0; k < 64; k++) {
+        var F, g;
+        if (k < 16) { F = (B & C) | (~B & D); g = k; }
+        else if (k < 32) { F = (D & B) | (~D & C); g = (5 * k + 1) % 16; }
+        else if (k < 48) { F = B ^ C ^ D; g = (3 * k + 5) % 16; }
+        else { F = C ^ (B | ~D); g = (7 * k) % 16; }
+        F = (F + A + K[k] + M[g]) >>> 0;
+        A = D; D = C; C = B;
+        var s = S[(k >> 4) * 4 + (k & 3)];
+        B = (B + ((F << s) | (F >>> (32 - s)))) >>> 0;
+      }
+      a0 = (a0 + A) >>> 0; b0 = (b0 + B) >>> 0; c0 = (c0 + C) >>> 0; d0 = (d0 + D) >>> 0;
+    }
+    var out = new Uint8Array(16), odv = new DataView(out.buffer);
+    odv.setUint32(0, a0, true); odv.setUint32(4, b0, true); odv.setUint32(8, c0, true); odv.setUint32(12, d0, true);
+    return out;
+  }
+
+  var REGIONS = [['RMCE', 'North America'], ['RMCP', 'Europe / PAL'], ['RMCJ', 'Japan'], ['RMCK', 'Korea']];
+
+  function chkFor(pid, game) {
+    var b = new Uint8Array(8);
+    new DataView(b.buffer).setUint32(0, pid, true);
+    for (var i = 0; i < 4; i++) b[4 + i] = game.charCodeAt(3 - i);
+    return md5(b)[0] >> 1;
+  }
+  /* Builds a structurally valid 12-digit code from a 32-bit profile ID. */
+  function build(pid, game) {
+    return String(chkFor(pid, game || 'RMCE') * 4294967296 + pid).padStart(12, '0');
+  }
+  /* Returns the region names whose game ID produces this code's checksum. */
+  function checksumRegions(s) {
+    var fc = Number(s);
+    var pid = fc % 4294967296;
+    var chk = Math.floor(fc / 4294967296);
+    return REGIONS.filter(function (r) { return chkFor(pid, r[0]) === chk; }).map(function (r) { return r[1]; });
+  }
+
+  /* ---------- number helpers ---------- */
+  function isPrime(x) {
+    if (x < 2) return false;
+    var small = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
+    for (var i = 0; i < small.length; i++) {
+      if (x === small[i]) return true;
+      if (x % small[i] === 0) return false;
+    }
+    var n = BigInt(x), d = n - 1n, r = 0;
+    while ((d & 1n) === 0n) { d >>= 1n; r++; }
+    function pow(b, e, m) {
+      var res = 1n; b %= m;
+      while (e > 0n) { if (e & 1n) res = (res * b) % m; b = (b * b) % m; e >>= 1n; }
+      return res;
+    }
+    var bases = [2n, 3n, 5n, 7n, 11n, 13n, 17n];
+    for (var bi = 0; bi < bases.length; bi++) {
+      var y = pow(bases[bi], d, n);
+      if (y === 1n || y === n - 1n) continue;
+      var comp = true;
+      for (var j = 1; j < r; j++) {
+        y = (y * y) % n;
+        if (y === n - 1n) { comp = false; break; }
+      }
+      if (comp) return false;
+    }
+    return true;
+  }
+
+  function context(s, x) {
+    var d = [], i;
+    for (i = 0; i < 12; i++) d.push(s.charCodeAt(i) - 48);
+    var num = Number(s);
+    var run = 1, best = 1;
+    for (i = 1; i < 12; i++) { run = d[i] === d[i - 1] ? run + 1 : 1; if (run > best) best = run; }
+    var up = 1, down = 1, seq = 1;
+    for (i = 1; i < 12; i++) {
+      up = d[i] === d[i - 1] + 1 ? up + 1 : 1;
+      down = d[i] === d[i - 1] - 1 ? down + 1 : 1;
+      if (up > seq) seq = up;
+      if (down > seq) seq = down;
+    }
+    var pal = 1;
+    for (var c = 0; c < 12; c++) {
+      var l = c, r = c;
+      while (l >= 0 && r < 12 && d[l] === d[r]) { if (r - l + 1 > pal) pal = r - l + 1; l--; r++; }
+      l = c; r = c + 1;
+      while (l >= 0 && r < 12 && d[l] === d[r]) { if (r - l + 1 > pal) pal = r - l + 1; l--; r++; }
+    }
+    var counts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sum = 0;
+    for (i = 0; i < 12; i++) { counts[d[i]]++; sum += d[i]; }
+    var distinct = counts.filter(function (x) { return x > 0; }).length;
+    var maxCount = Math.max.apply(null, counts);
+    var period = 0;
+    [1, 2, 3, 4, 6].forEach(function (p) {
+      if (period) return;
+      var ok = true;
+      for (var k = p; k < 12; k++) if (d[k] !== d[k - p]) { ok = false; break; }
+      if (ok) period = p;
+    });
+    var b = [s.slice(0, 4), s.slice(4, 8), s.slice(8, 12)];
+    function rev(x) { return x.split('').reverse().join(''); }
+    var blockPal = b.filter(function (x) { return x === rev(x); }).length;
+    var twin = b[0] === b[1] || b[1] === b[2] || b[0] === b[2];
+    var mirror = b[0] === rev(b[2]);
+    var sortedUp = true, sortedDown = true;
+    for (i = 1; i < 12; i++) { if (d[i] < d[i - 1]) sortedUp = false; if (d[i] > d[i - 1]) sortedDown = false; }
+    var tz = 0; while (tz < 12 && s[11 - tz] === '0') tz++;
+    var lz = 0; while (lz < 12 && s[lz] === '0') lz++;
+    var sq = Math.round(Math.sqrt(num)), cu = Math.round(Math.cbrt(num));
+    return {
+      s: s, d: d, num: num, run: best, seq: seq, pal: pal, distinct: distinct, maxCount: maxCount,
+      sum: sum, period: period, blockPal: blockPal, twin: twin, mirror: mirror,
+      sortedUp: sortedUp, sortedDown: sortedDown, tz: tz, lz: lz,
+      isSquare: sq * sq === num && num > 0, isCube: cu * cu * cu === num && num > 0,
+      allEven: d.every(function (x) { return x % 2 === 0; }),
+      allOdd: d.every(function (x) { return x % 2 === 1; }),
+      allLow: d.every(function (x) { return x <= 4; }),
+      allHigh: d.every(function (x) { return x >= 5; }),
+      prime: null,
+      rk: x && x.r > 0 ? x.r : 0, vr: x && x.v > 0 ? x.v : 0, mii: !!(x && x.mii), racer: !!x
+    };
+  }
+  function primeOf(c) { if (c.prime === null) c.prime = isPrime(c.num); return c.prime; }
+  function has(c, t) { return c.s.indexOf(t) !== -1; }
+
+  /* ---------- badge catalog ----------
+     family: badges in one family are alternatives; only the highest lvl that matched scores.
+     lvl: order of strictness inside a family. */
+  var B = [];
+  function add(id, name, family, lvl, desc, test) { B.push({ id: id, name: name, family: family, lvl: lvl, desc: desc, test: test }); }
+
+  [[3, 'Triple', 'same digit 3 times in a row'], [4, 'Quad', 'same digit 4 times in a row'], [5, 'Quint', 'same digit 5 times in a row'],
+   [6, 'Sextet', 'same digit 6 times in a row'], [8, 'Octet', 'same digit 8 times in a row']]
+    .forEach(function (x, i) { add('run' + x[0], x[1], 'run', i + 1, x[2], function (c) { return c.run >= x[0]; }); });
+
+  [[4, 'Stairs', 'a 4-digit run counting up or down by 1'], [5, 'Long Stairs', 'a 5-digit run counting up or down by 1'],
+   [6, 'Escalator', 'a 6-digit run counting up or down by 1'], [8, 'Grand Staircase', 'an 8-digit run counting up or down by 1']]
+    .forEach(function (x, i) { add('seq' + x[0], x[1], 'seq', i + 1, x[2], function (c) { return c.seq >= x[0]; }); });
+
+  [[5, 'Mini Echo', 'a 5-digit palindrome hidden inside'], [6, 'Echo', 'a 6-digit palindrome hidden inside'],
+   [8, 'Deep Echo', 'an 8-digit palindrome hidden inside'], [10, 'Mirror Hall', 'a 10-digit palindrome hidden inside'],
+   [12, 'Palindrome', 'the whole code reads the same backwards']]
+    .forEach(function (x, i) { add('pal' + x[0], x[1], 'pal', i + 1, x[2], function (c) { return c.pal >= x[0]; }); });
+
+  add('div9', 'Nine Colors', 'div', 1, 'at least 9 different digits', function (c) { return c.distinct >= 9; });
+  add('div10', 'Pandigital', 'div', 2, 'every digit 0-9 appears', function (c) { return c.distinct >= 10; });
+  [[5, 'Quintet', 'only 5 different digits'], [4, 'Quartet', 'only 4 different digits'], [3, 'Trio', 'only 3 different digits'], [2, 'Duo', 'only 2 different digits']]
+    .forEach(function (x, i) { add('sparse' + x[0], x[1], 'sparse', i + 1, x[2], function (c) { return c.distinct <= x[0]; }); });
+
+  add('loop6', 'Twin Halves', 'loop', 1, 'the first 6 digits repeat', function (c) { return c.period === 6 || c.period === 3 || c.period === 2 || c.period === 1; });
+  add('loop4', 'Three-Peat', 'loop', 2, 'one 4-digit block repeated 3 times', function (c) { return c.period === 4 || c.period === 2 || c.period === 1; });
+  add('loop3', 'Four-Peat', 'loop', 3, 'a 3-digit pattern repeated 4 times', function (c) { return c.period === 3 || c.period === 1; });
+
+  add('bpal1', 'Block Echo', 'bpal', 1, 'one 4-digit block is a palindrome', function (c) { return c.blockPal >= 1; });
+  add('bpal2', 'Double Echo', 'bpal', 2, 'two 4-digit blocks are palindromes', function (c) { return c.blockPal >= 2; });
+  add('bpal3', 'Triple Echo', 'bpal', 3, 'all three blocks are palindromes', function (c) { return c.blockPal >= 3; });
+  add('btwin', 'Twin Blocks', 'bmatch', 1, 'two blocks are identical', function (c) { return c.twin; });
+  add('bmirror', 'Block Mirror', 'bmatch', 2, 'last block is the first block reversed', function (c) { return c.mirror; });
+
+  add('nice', 'Nice', 'nice', 1, 'contains 69', function (c) { return has(c, '69'); });
+  add('nicenice', 'Nice Nice', 'nice', 2, 'contains 6969', function (c) { return has(c, '6969'); });
+  add('sixseven', 'Six Seven', 'sixseven', 1, 'contains 67', function (c) { return has(c, '67'); });
+  add('sixseven2', 'Six Seven, Six Seven', 'sixseven', 2, 'contains 6767', function (c) { return has(c, '6767'); });
+  add('blaze', 'Roll Up', 'blaze', 1, 'contains 420', function (c) { return has(c, '420'); });
+  add('blaze2', 'Blaze It Nice', 'blaze', 2, 'contains 42069', function (c) { return has(c, '42069'); });
+  add('blaze3', 'Blaze It Six Seven', 'blaze', 2, 'contains 42067', function (c) { return has(c, '42067'); });
+  add('beast', 'Beast Mode', 'beast', 1, 'contains 666', function (c) { return has(c, '666'); });
+  add('jackpot', 'Jackpot', 'jackpot', 1, 'contains 777', function (c) { return has(c, '777'); });
+  add('leet', 'Leet', 'leet', 1, 'contains 1337', function (c) { return has(c, '1337'); });
+  add('answer42', 'Answer to Everything', 'answer42', 1, 'contains 42', function (c) { return has(c, '42'); });
+  add('calc', 'Calculator Joke', 'calc', 1, 'contains 8008', function (c) { return has(c, '8008'); });
+  add('lucky8', 'Lucky Eights', 'lucky8', 1, 'contains 888', function (c) { return has(c, '888'); });
+  add('nines', 'WRLD', 'nines', 1, 'contains 999', function (c) { return has(c, '999'); });
+  add('emergency', 'Emergency', 'emergency', 1, 'contains 911', function (c) { return has(c, '911'); });
+  add('elite', 'Elite Plus', 'leet', 2, 'contains 31337', function (c) { return has(c, '31337'); });
+  add('jenny', 'Jenny', 'jenny', 1, 'contains 8675309', function (c) { return has(c, '8675309'); });
+  add('apollo', 'Apollo', 'apollo', 1, 'contains 1969, the moon landing year', function (c) { return has(c, '1969'); });
+  add('odyssey', 'Space Odyssey', 'odyssey', 1, 'contains 2001', function (c) { return has(c, '2001'); });
+  add('binary', 'Binary Brain', 'binary', 1, 'only 0s and 1s', function (c) { return /^[01]+$/.test(c.s); });
+  add('golden', 'Golden Ratio', 'golden', 1, 'contains 1618', function (c) { return has(c, '1618'); });
+  add('euler', 'Euler', 'euler', 1, 'contains 2718', function (c) { return has(c, '2718'); });
+  add('euler2', 'Natural Log', 'euler', 2, 'contains 27182', function (c) { return has(c, '27182'); });
+  add('birthday', 'Birthday', 'birthday', 1, 'contains 321', function (c) { return has(c, '321'); });
+  add('drum808', 'Bass', 'drum808', 1, 'contains 808', function (c) { return has(c, '808'); });
+  add('hometown', 'Home', 'hometown', 1, 'contains 608', function (c) { return has(c, '608'); });
+  /* Racer badges: they depend on who the code belongs to (leaderboard rank, VR, saved Mii), so they only apply when the racer is known.
+     Their odds come from the real racer list, not from random codes (see sim.js). */
+  add('rank1000', 'Top 1,000', 'rank', 1, 'the racer is in the top 1,000 on the VR leaderboard', function (c) { return c.rk > 0 && c.rk <= 1000; });
+  add('rank100', 'Top 100', 'rank', 2, 'the racer is in the top 100 on the VR leaderboard', function (c) { return c.rk > 0 && c.rk <= 100; });
+  add('rank10', 'Top 10', 'rank', 3, 'the racer is in the top 10 on the VR leaderboard', function (c) { return c.rk > 0 && c.rk <= 10; });
+  add('rank1', 'Number One', 'rank', 4, 'the racer is #1 on the VR leaderboard', function (c) { return c.rk === 1; });
+  add('vr25k', 'VR 25K', 'vr', 1, 'the racer has 25,000 VR or more', function (c) { return c.vr >= 25000; });
+  add('vr50k', 'VR 50K', 'vr', 2, 'the racer has 50,000 VR or more', function (c) { return c.vr >= 50000; });
+  add('vr100k', 'VR 100K', 'vr', 3, 'the racer has 100,000 VR or more', function (c) { return c.vr >= 100000; });
+  add('vr10k', 'Fresh Start', 'vrexact', 1, 'the racer has exactly 10,000 VR, the starting amount', function (c) { return c.vr === 10000; });
+  add('over9000', 'Over 9000', 'over9000', 1, 'contains 9001', function (c) { return has(c, '9001'); });
+  add('bond', 'Double-Oh Seven', 'bond', 1, 'contains 007', function (c) { return has(c, '007'); });
+  add('cc150', '150cc', 'cc150', 1, 'contains 150, the fastest engine class', function (c) { return has(c, '150'); });
+  add('wii', 'Wii Year', 'wii', 1, 'contains 2006 or 2008, the Wii and Mario Kart Wii release years', function (c) { return has(c, '2006') || has(c, '2008'); });
+  add('superyear', 'Super Year', 'superyear', 1, 'contains 1985', function (c) { return has(c, '1985'); });
+  add('pi1', 'Pi Day', 'pi', 1, 'contains 3141', function (c) { return has(c, '3141'); });
+  add('pi2', 'Pi Slice', 'pi', 2, 'contains 31415', function (c) { return has(c, '31415'); });
+  add('fib1', 'Fibonacci Start', 'fib', 1, 'contains 11235', function (c) { return has(c, '11235'); });
+
+  [[5, 'Heavy Digit', 'one digit shows up 5 times'], [6, 'Digit Hoard', 'one digit shows up 6 times'], [7, 'Digit Flood', 'one digit shows up 7 times'], [8, 'Digit Monopoly', 'one digit shows up 8 times']]
+    .forEach(function (x, i) { add('heavy' + x[0], x[1], 'heavy', i + 1, x[2], function (c) { return c.maxCount >= x[0]; }); });
+
+  add('sumlow', 'Featherweight', 'sumlow', 1, 'digits add up to 30 or less', function (c) { return c.sum <= 30; });
+  add('sumhigh', 'Heavyweight', 'sumhigh', 1, 'digits add up to 78 or more', function (c) { return c.sum >= 78; });
+
+  add('even', 'Even Steven', 'parity', 1, 'the code is an even number', function (c) { return c.num % 2 === 0; });
+  add('odd', 'Odd One Out', 'parity', 1, 'the code is an odd number', function (c) { return c.num % 2 === 1; });
+  add('div3', 'Divisible by 3', 'div3', 1, 'the code divides evenly by 3', function (c) { return c.num % 3 === 0; });
+  add('div7', 'Divisible by 7', 'div7', 1, 'the code divides evenly by 7', function (c) { return c.num % 7 === 0; });
+  add('div11', 'Divisible by 11', 'div11', 1, 'the code divides evenly by 11', function (c) { return c.num % 11 === 0; });
+
+  [[3, 'Round', 'ends in 3 zeros'], [4, 'Rounder', 'ends in 4 zeros'], [5, 'Rounder Still', 'ends in 5 zeros'], [6, 'Million', 'ends in 6 zeros'], [9, 'Billion', 'ends in 9 zeros']]
+    .forEach(function (x, i) { add('tz' + x[0], x[1], 'round', i + 1, x[2], function (c) { return c.tz >= x[0]; }); });
+  [[2, 'Zero Pad', 'starts with 2 zeros'], [3, 'Low Roller', 'starts with 3 zeros'], [4, 'Deep Zero', 'starts with 4 zeros'], [5, 'Almost Nothing', 'starts with 5 zeros']]
+    .forEach(function (x, i) { add('lz' + x[0], x[1], 'lead0', i + 1, x[2], function (c) { return c.lz >= x[0]; }); });
+
+  add('prime', 'Prime Time', 'prime', 1, 'the code is a prime number', function (c) { return primeOf(c); });
+  add('square', 'Perfect Square', 'square', 1, 'the code is a perfect square', function (c) { return c.isSquare; });
+
+  add('sortup', 'Ascending Order', 'order', 1, 'digits never go down', function (c) { return c.sortedUp; });
+  add('alleven', 'All Even Digits', 'digitparity', 1, 'every digit is even', function (c) { return c.allEven; });
+  add('allodd', 'All Odd Digits', 'digitparity', 1, 'every digit is odd', function (c) { return c.allOdd; });
+  add('alllow', 'Low Digits', 'digitrange', 1, 'every digit is 4 or lower', function (c) { return c.allLow; });
+
+  /* Creator codes: two specific friend codes carry their own top-tier badge. */
+  add('creator1', 'Creator Code', 'creator', 1, 'one of the creator\u2019s own friend codes', function (cx) { return cx.s === '000099099010'; });
+  add('creator2', 'Creator Code II', 'creator', 1, 'one of the creator\u2019s own friend codes', function (cx) { return cx.s === '382252251822'; });
+  B[B.length - 2].special = true; B[B.length - 1].special = true;
+
+  /* ---------- tiers & EP ---------- */
+  var BADGE_TIERS = [
+    { id: 'common', name: 'Common', min: 0.10, ep: 2 },
+    { id: 'uncommon', name: 'Uncommon', min: 0.01, ep: 8 },
+    { id: 'rare', name: 'Rare', min: 0.001, ep: 25 },
+    { id: 'epic', name: 'Epic', min: 0.0001, ep: 80 },
+    { id: 'anomaly', name: 'Anomaly', min: 0.00001, ep: 250 },
+    { id: 'mythic', name: 'Mythic', min: 0, ep: 800 }
+  ];
+  /* EP follows RNGdle: a badge is worth 100 / (its odds), so a 1-in-11 badge is 1,100 EP.
+     Odds are floored at 1 in a million, which caps one badge at 100,000,000 EP. */
+  var P_FLOOR = 1e-6;
+  function epFor(p) { return Math.round(100 / Math.max(p, P_FLOOR)); }
+  var SPECIAL_TIER = { id: 'creator', name: 'Creator', min: 0, ep: 1000000000 };
+  function badgeTier(p) {
+    for (var i = 0; i < BADGE_TIERS.length; i++) if (p >= BADGE_TIERS[i].min || i === BADGE_TIERS.length - 1) return BADGE_TIERS[i];
+  }
+
+  /* Every badge whose condition the code meets (before family settling). */
+  function matchAll(s, x) {
+    var c = context(s, x);
+    return B.filter(function (b) { return b.test(c); });
+  }
+
+  /* probs: {id: probability}. Returns kept/shadowed badges and the EP total. */
+  function score(s, probs, x) {
+    var matched = matchAll(s, x);
+    var byFam = {};
+    matched.forEach(function (b) { if (!byFam[b.family] || b.lvl > byFam[b.family].lvl) byFam[b.family] = b; });
+    var kept = [], shadowed = [];
+    matched.forEach(function (b) {
+      var p = probs[b.id] || 0, t = b.special ? SPECIAL_TIER : badgeTier(p);
+      var row = { id: b.id, name: b.name, family: b.family, desc: b.desc, p: p, tier: t.id, tierName: t.name, ep: b.special ? t.ep : epFor(p), by: byFam[b.family].name, special: !!b.special };
+      (byFam[b.family] === b ? kept : shadowed).push(row);
+    });
+    kept.sort(function (a, b) { return b.ep - a.ep || a.p - b.p; });
+    var total = kept.reduce(function (a, b) { return a + b.ep; }, 0);
+    return { total: total, kept: kept, shadowed: shadowed };
+  }
+
+  /* cdf: {eps:[], below:[], equal:[]} from the simulation.
+     Returns {mid, below}: midrank percentile and the share of codes scoring strictly lower. */
+  function rank(ep, cdf) {
+    var eps = cdf.eps, n = eps.length, lo = 0, hi = n - 1, idx = -1;
+    while (lo <= hi) { var m = (lo + hi) >> 1; if (eps[m] <= ep) { idx = m; lo = m + 1; } else hi = m - 1; }
+    if (idx < 0) return { mid: 0, below: 0 };
+    if (eps[idx] === ep) return { mid: cdf.below[idx] + cdf.equal[idx] / 2, below: cdf.below[idx] };
+    var cum = cdf.below[idx] + cdf.equal[idx];
+    if (idx + 1 < n) cum += (cdf.below[idx + 1] - cum) * (ep - eps[idx]) / (eps[idx + 1] - eps[idx]);
+    return { mid: cum, below: cum };
+  }
+  var NUMBER_TIERS = [
+    { id: 'mythic', name: 'Mythic', min: 0.99 }, { id: 'anomaly', name: 'Anomaly', min: 0.95 },
+    { id: 'epic', name: 'Epic', min: 0.90 }, { id: 'rare', name: 'Rare', min: 0.75 },
+    { id: 'uncommon', name: 'Uncommon', min: 0.50 }, { id: 'common', name: 'Common', min: 0 },
+    { id: 'trash', name: 'Trash', min: -1 }
+  ];
+  /* Trash: the bottom 1% of codes. */
+  function numberTier(r) {
+    if (r.mid < 0.01) return NUMBER_TIERS[NUMBER_TIERS.length - 1];
+    for (var i = 0; i < NUMBER_TIERS.length; i++) if (r.mid >= NUMBER_TIERS[i].min) return NUMBER_TIERS[i];
+  }
+
+  /* ---------- input parsing ---------- */
+  function parse(raw) {
+    var digits = String(raw).replace(/[\s-]/g, '');
+    if (/[^0-9]/.test(digits)) return { ok: false, error: 'Use digits only. Spaces and dashes are fine.' };
+    if (digits.length < 12) return { ok: false, error: 'Needs 12 digits, you have ' + digits.length + '.', partial: true };
+    if (digits.length > 12) return { ok: false, error: 'A friend code is 12 digits, you have ' + digits.length + '.' };
+    return { ok: true, s: digits, pretty: digits.slice(0, 4) + '-' + digits.slice(4, 8) + '-' + digits.slice(8) };
+  }
+
+  var api = {
+    BADGES: B, BADGE_TIERS: BADGE_TIERS, SPECIAL_TIER: SPECIAL_TIER, epFor: epFor, P_FLOOR: P_FLOOR, NUMBER_TIERS: NUMBER_TIERS, md5: md5, checksumRegions: checksumRegions, build: build,
+    matchAll: matchAll, score: score, rank: rank, numberTier: numberTier, badgeTier: badgeTier, parse: parse, isPrime: isPrime
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FC = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+const DATA = {"N":4000000,"probs":{"run3":0.08793,"run4":0.008113,"run5":0.0007248,"run6":0.0000695,"run8":5e-7,"seq4":0.01163,"seq5":0.0009078,"seq6":0.0000675,"seq8":0,"pal5":0.08391,"pal6":0.01306,"pal8":0.0009277,"pal10":0.0000505,"pal12":5e-7,"div9":0.08773,"div10":0.006274,"sparse5":0.04464,"sparse4":0.003054,"sparse3":0.00005775,"sparse2":0,"loop6":0.00000125,"loop4":2.5e-7,"loop3":0,"bpal1":0.02962,"bpal2":0.00029,"bpal3":5e-7,"btwin":0.0003035,"bmirror":0.0000925,"nice":0.09566,"nicenice":0.0007925,"sixseven":0.09554,"sixseven2":0.000803,"blaze":0.01087,"blaze2":0.0000815,"blaze3":0.0000905,"beast":0.00814,"jackpot":0.008111,"leet":0.001021,"answer42":0.1137,"calc":0.0007925,"lucky8":0.008096,"nines":0.008107,"emergency":0.008947,"elite":0.0000865,"jenny":2.5e-7,"apollo":0.0009715,"odyssey":0.000989,"binary":0,"golden":0.0009985,"euler":0.0009838,"euler2":0.000094,"birthday":0.01086,"drum808":0.008875,"hometown":0.008877,"rank1000":0.00701,"rank100":0.000701,"rank10":0.0000701,"rank1":0.00000701,"vr25k":0.03624,"vr50k":0.01164,"vr100k":0.002895,"vr10k":0.0003575,"over9000":0.0007975,"bond":0.01091,"cc150":0.01086,"wii":0.001983,"superyear":0.001012,"pi1":0.0009812,"pi2":0.0000865,"fib1":0.0001005,"heavy5":0.043,"heavy6":0.00537,"heavy7":0.0004802,"heavy8":0.00003475,"sumlow":0.01343,"sumhigh":0.002872,"even":0.5002,"odd":0.4998,"div3":0.3336,"div7":0.143,"div11":0.09102,"tz3":0.001008,"tz4":0.00009975,"tz5":0.000011,"tz6":0.00000125,"tz9":0,"lz2":0.01816,"lz3":0.001817,"lz4":0.0001825,"lz5":0.00002,"prime":0.03842,"square":5e-7,"sortup":7.5e-7,"alleven":0.0002653,"allodd":0.000209,"alllow":0.0004588,"creator1":0,"creator2":0},"solo":["seq8","loop3","jenny","rank1","tz9"],"cdf":{"eps":[200,500,899,1080,1199,1245,1247,1299,1337,1340,1380,1392,1545,1547,1599,1637,1640,1692,1779,1944,1946,1998,2036,2039,2079,2091,2125,2127,2179,2217,2220,2244,2246,2272,2292,2298,2336,2339,2344,2346,2382,2384,2385,2387,2391,2425,2427,2436,2437,2439,2440,2479,2491,2517,2520,2526,2529,2532,2572,2592,2644,2646,2682,2684,2685,2687,2736,2737,2739,2740,2791,2803,2824,2826,2829,2878,2919,2971,2991,3043,3045,3084,3086,3135,3136,3138,3139,3190,3224,3225,3231,3265,3267,3317,3319,3320,3371,3384,3386,3406,3436,3438,3439,3484,3485,3486,3487,3525,3538,3539,3571,3573,3576,3577,3620,3625,3632,3663,3683,3706,3718,3784,3787,3839,3848,3850,3876,3877,3932,3940,3943,3963,3995,4018,4183,4266,4275,4331,4405,4456,4521,4575,4621,4623,4675,4713,4730,4756,4766,4805,4832,4875,4921,4923,4975,4988,4990,5042,5043,5066,5129,5242,5409,5501,5642,5707,5801,5816,5902,5903,5958,6007,6116,6179,6254,6406,6587,6706,6752,6754,6806,6863,6915,7052,7095,7199,7369,7598,7644,7858,7944,8099,8158,8310,8445,8557,8738,8801,8857,8913,9038,9101,9205,9369,9409,9410,9500,9669,9709,9710,9846,9848,9900,9970,10068,10098,10108,10109,10148,10184,10249,10278,10302,10408,10428,10456,10468,10508,10509,10549,10578,10601,10716,10764,10809,10850,10947,10977,11021,11118,11207,11249,11300,11325,11377,11418,11466,11468,11534,11609,11660,11677,11730,11766,11768,11909,12000,12024,12076,12165,12167,12257,12348,12422,12465,12489,12513,12517,12525,12567,12606,12658,12660,12745,12813,12826,12881,12958,13085,13205,13302,13405,13514,13604,13622,13666,13672,13688,13710,13858,13922,13966,13972,13988,14069,14282,14365,14387,14546,14621,14669,14713,14721,14765,14806,14844,14858,14876,14967,15017,15065,15128,15176,15355,15470,15579,15731,15816,15896,15912,15957,16014,16138,16223,16269,16314,16438,16713,16837,16961,17018,17098,17154,17185,17275,17380,17484,17694,17901,18011,18178,18254,18374,18582,18821,19107,19203,19439,19701,19958,20226,20492,20830,21150,21522,22024,22498,22881,23433,24027,24810,25039,25534,25997,26621,27315,28101,28659,29789,31228,32944,34085,35016,35573,36320,36849,37642,39206,41677,45475,49603,50635,51565,52379,54483,56365,57764,60713,65834,75644,98443,99314,100350,100760,101349,101852,102357,102851,103548,104179,105278,107988,110228,111401,112780,117901,124733,125892,126383,127082,128455,131999,142796,163608,228194,286359,355925,485071,1064030,1329462,106658308],"below":[0,0.214806,0.330185,0.3687313,0.3965835,0.4157488,0.440285,0.46475,0.487852,0.4979028,0.5215085,0.5362475,0.551064,0.5643807,0.5776875,0.5892085,0.5945712,0.6073078,0.6152928,0.6203213,0.624804,0.6292525,0.6331305,0.6349315,0.6391468,0.6416148,0.6442235,0.6465435,0.6487655,0.6517545,0.6529205,0.6557905,0.6580243,0.6602158,0.6621613,0.6641368,0.6660553,0.6669538,0.6690958,0.67177,0.6744313,0.6752713,0.6761108,0.67958,0.6829378,0.684253,0.6854983,0.6867565,0.6878508,0.689542,0.6937698,0.6995123,0.7009905,0.702607,0.7032403,0.7047698,0.7088703,0.710022,0.710414,0.7114565,0.7125625,0.713924,0.7152443,0.7156795,0.7161385,0.7179438,0.7197538,0.7202838,0.7211893,0.723337,0.726353,0.7271625,0.743822,0.7442455,0.7467883,0.747609,0.7483065,0.7488018,0.7491473,0.7495085,0.7499563,0.7507198,0.7513478,0.752374,0.7525683,0.7528695,0.7536113,0.7550365,0.7556535,0.755894,0.7570722,0.7572822,0.757662,0.758512,0.7586662,0.7591285,0.760345,0.760707,0.7610098,0.7615568,0.7627123,0.7628573,0.7632235,0.7640023,0.7645403,0.7649663,0.7653515,0.7661465,0.7669463,0.767122,0.7681995,0.768527,0.768966,0.775072,0.7762148,0.7765995,0.7771965,0.778385,0.7798805,0.7819853,0.7824075,0.783423,0.784104,0.7845695,0.784852,0.787057,0.789678,0.7929988,0.7937808,0.7943928,0.7952003,0.79702,0.7979325,0.799136,0.8000247,0.8006227,0.8008198,0.8023522,0.803028,0.8034425,0.8047085,0.8051592,0.8060377,0.8066705,0.80777,0.8088477,0.8094775,0.8098295,0.8105785,0.8119307,0.8124585,0.8128397,0.813322,0.813668,0.8140715,0.8146937,0.8150077,0.8157832,0.8159362,0.8165425,0.817379,0.8181877,0.818723,0.8192115,0.8197497,0.8201282,0.8239745,0.8242637,0.825157,0.8253757,0.8259325,0.8262877,0.8285355,0.8289527,0.8299135,0.8303422,0.8311833,0.8318402,0.832181,0.8325717,0.8330477,0.8338968,0.8344173,0.834867,0.8354472,0.8360165,0.836614,0.8371583,0.8372593,0.839163,0.8414573,0.8432915,0.8435297,0.8449225,0.845732,0.846031,0.8467975,0.8474653,0.849616,0.850303,0.8507508,0.851312,0.852634,0.8531745,0.8553425,0.8580615,0.8604845,0.861112,0.8624605,0.8639083,0.8654973,0.8656518,0.866732,0.8673885,0.8679488,0.8683785,0.8687275,0.8692155,0.8697553,0.8701773,0.870925,0.8713285,0.874784,0.87526,0.8759863,0.8763663,0.876895,0.8774345,0.877715,0.8784548,0.8792073,0.8811108,0.8817423,0.8823168,0.8828138,0.8833815,0.8839498,0.8841023,0.8850748,0.8856418,0.8861178,0.8866555,0.8871968,0.8875895,0.887983,0.8906325,0.891193,0.8935333,0.8961735,0.896784,0.8973545,0.8973653,0.8990408,0.899196,0.9004418,0.9020758,0.9026123,0.9030913,0.903237,0.9038653,0.9042868,0.9049918,0.905632,0.9061835,0.9070005,0.9077283,0.907981,0.9086783,0.9089083,0.909658,0.910265,0.911022,0.911177,0.9119318,0.9124833,0.913164,0.9135968,0.9142928,0.9148558,0.9153863,0.915875,0.9164115,0.9169413,0.917452,0.917736,0.919582,0.9212188,0.9228055,0.9250003,0.9255178,0.9257555,0.9267688,0.927624,0.9286763,0.929938,0.9306005,0.9310373,0.931625,0.9323743,0.932907,0.9335023,0.934264,0.9349005,0.9355388,0.936232,0.9367193,0.9371833,0.937689,0.938577,0.9391365,0.939721,0.9403233,0.9408483,0.9415855,0.9420685,0.942588,0.9431165,0.943635,0.9441578,0.9446198,0.9452245,0.9457093,0.946273,0.9486345,0.949015,0.9496488,0.9498638,0.9513708,0.951627,0.9524598,0.9527875,0.9534858,0.9539835,0.954419,0.9551918,0.9557163,0.9562185,0.9567388,0.9572433,0.9574893,0.9584563,0.9589433,0.9594818,0.959972,0.9604453,0.9611535,0.961658,0.9621865,0.9626925,0.9631143,0.9637793,0.9642805,0.964785,0.9652793,0.9658303,0.9663305,0.9668298,0.9673763,0.9678858,0.968394,0.9688388,0.9694013,0.969912,0.970413,0.9709138,0.9714063,0.9719135,0.972416,0.9729158,0.9734175,0.9739165,0.9745693,0.974969,0.975675,0.9761675,0.976694,0.9771953,0.9777283,0.9782288,0.9787303,0.9792295,0.9793598,0.9803048,0.9808175,0.9813268,0.9814553,0.9822625,0.9827763,0.9833145,0.9838355,0.984279,0.984842,0.9853615,0.9861115,0.9866095,0.9871285,0.9878445,0.9883498,0.9888713,0.989138,0.989873,0.9903768,0.9909943,0.9915353,0.9920338,0.9925363,0.9929155,0.9935633,0.9938118,0.9946083,0.9951713,0.9956708,0.9961768,0.9966753,0.9971843,0.9976843,0.9981848,0.9986845,0.9991635,0.9996933,0.9999998],"equal":[0.214806,0.115379,0.0385462,0.0278522,0.0191653,0.0245362,0.024465,0.023102,0.0100508,0.0236058,0.014739,0.0148165,0.0133168,0.0133067,0.011521,0.0053628,0.0127365,0.007985,0.0050285,0.0044827,0.0044485,0.003878,0.001801,0.0042153,0.002468,0.0026087,0.00232,0.002222,0.002989,0.001166,0.00287,0.0022338,0.0021915,0.0019455,0.0019755,0.0019185,0.0008985,0.002142,0.0026742,0.0026612,0.00084,0.0008395,0.0034693,0.0033578,0.0013153,0.0012453,0.0012583,0.0010942,0.0016913,0.0042277,0.0054545,0.0014782,0.0016165,0.0006333,0.0015295,0.0041005,0.0011517,0.000392,0.0010425,0.001106,0.0013615,0.0013203,0.0004352,0.000459,0.0018052,0.00181,0.00053,0.0009055,0.0021477,0.0028558,0.0008095,0.0166595,0.0004235,0.0025427,0.0006132,0.0004938,0.0004953,0.0003455,0.0003613,0.0004478,0.000455,0.000628,0.0006042,0.0001943,0.0003012,0.0007418,0.0010003,0.0002693,0.0002405,0.0007225,0.0000715,0.0003797,0.0003662,0.0001543,0.0004622,0.000735,0.000213,0.0003028,0.0003158,0.0006563,0.000145,0.0003662,0.0004903,0.000538,0.000426,0.0003853,0.0004405,0.0003715,0.0001757,0.0005858,0.0003275,0.000351,0.006106,0.0007255,0.0003848,0.000433,0.001173,0.0013817,0.0019842,0.0003302,0.0008055,0.000291,0.0002335,0.0002825,0.002205,0.0022002,0.0033207,0.0003867,0.000612,0.0008075,0.0018055,0.0007765,0.0011525,0.0004653,0.0000985,0.0000367,0.0011285,0.0002082,0.0000465,0.0007665,0.000003,0.0005338,0.0005987,0.0006237,0.0006595,0.0001463,0.0001937,0.0004075,0.00088,0.0000363,0.0000205,0.0001395,0.0003293,0.0003365,0.0003255,0.000314,0.000308,0.000153,0.0004245,0.0005065,0.0003403,0.000038,0.000015,0.0000598,0.0000247,0.0033555,0.0000303,0.000534,0.0002188,0.000318,0.0003237,0.0018227,0.000259,0.0004813,0.0000292,0.0006145,0.0003543,0.000302,0.0003907,0.0003772,0.000378,0.0000355,0.000053,0.0001927,0.000125,0.0001083,0.0000755,0.0000355,0.001446,0.0021128,0.0013412,0.0000147,0.0011585,0.0003132,0.000004,0.000379,0.0002823,0.0017055,0.00019,0.0000058,0.0001485,0.00091,0.0001247,0.0021125,0.002719,0.0022395,0.000308,0.0011232,0.0014478,0.0012025,0.0001545,0.0007422,0.000196,0.0002145,0.0003882,0.0003485,0.000488,0.0004208,0.0003805,0.00035,0.0001543,0.0029645,0.000012,0.0002272,0.0000027,0.0002055,0.0002278,0.0002805,0.000381,0.000392,0.0015903,0.000194,0.000078,0.000031,0.0002013,0.0001377,0.000082,0.0005278,0.0000672,0.0000023,0.0000508,0.0000455,0.000034,0.000167,0.0022055,0.0002975,0.002322,0.0022027,0.0001247,0.0000778,0.0000092,0.001179,0.0000073,0.0012457,0.0011742,0.0000415,0.0000095,0.0000322,0.0004015,0.0004205,0.000377,0.0001767,0.0002172,0.000381,0.000232,0.000005,0.0003305,0.000168,0.0003485,0.0002358,0.0003467,0.000154,0.000304,0.0000845,0.0001817,0.0000013,0.0002085,0.0000843,0.0000333,0.000013,0.0000403,0.0000415,0.0000178,0.0000193,0.001506,0.001623,0.001578,0.001716,0.0000225,0.0000055,0.000825,0.000847,0.0008567,0.0009063,0.0001625,0.0000025,0.000301,0.0003085,0.0001257,0.000123,0.0002677,0.000262,0.0001598,0.0002098,0.0000467,0.00006,0.0002025,0.000446,0.0001308,0.0001367,0.0001025,0.0000625,0.0002457,0.0000108,0.000031,0.0000475,0.0000267,0.0000292,0.0000157,0.0001065,0.0000247,0.0001702,0.001864,0.0000187,0.0001415,0.0000945,0.0010107,0.0000285,0.0003368,0.0000092,0.0002005,0.0000335,0.0000415,0.0002895,0.0000263,0.000004,0.000021,0.0000067,0.0000035,0.0004675,0.000001,0.0000433,0.0000055,0.0000205,0.00021,0.000017,0.0000298,0.000009,0.0000417,0.000168,0.000004,0.0000055,0.0000125,0.0000512,5e-7,0.0000023,0.0000525,0.0000135,0.0000083,0.0000025,0.0000662,0.0000115,0.0000013,8e-7,5e-7,0.0000095,0.0000027,5e-7,0.000002,5e-7,0.0001527,0.0000042,0.0002133,0.0000083,0.0000265,0.0000023,0.0000333,0.0000013,0.0000015,2e-7,0.0000025,0.000445,0.000016,0.0000095,5e-7,0.0003095,0.0000195,0.0000537,0.0000218,0.000001,0.0001353,0.0001522,0.0002518,0.000002,0.000024,0.0002172,0.0000185,0.000022,0.0000032,0.000261,0.0000298,0.000122,0.000041,5e-7,0.000003,8e-7,0.0002047,0.000113,0.0003455,0.000064,0.0000032,0.0000063,0.0000025,0.000009,2e-7,5e-7,2e-7,8e-7,0.0000298,2e-7,2e-7]}};
+const POOL = {"n":142659,"ps":["00","01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54"],"cs":[3666,2309,2222,3293,2230,2128,3312,2242,2223,3347,2193,2276,3221,2233,2237,3339,2209,2164,3360,2266,2274,3281,2221,2207,3282,2194,2214,3385,2283,2102,3336,2313,2291,3346,2185,2256,3355,2199,2261,3220,2319,2267,3198,2234,2230,3280,2260,2240,3184,2349,2243,3281,2317,2348,2234],"m":["000000017063","000000066160","000002222211","000004544000","000006336666","000016350000","000055600000","000069066990","000070066007","000100100100","000107111010","000111161116","000123457777","000199910100","000200000002","000200000603","000200002040","000200020120","000210012338","000240017777","000362050888","000377774444","000500000000","000600500000","000700800000","004295083444","008906072005","012885019179","013372545433","013485230091","017782412110","021474857037","021474946872","025769862717","025769920165","026370122873","030064917977","030665266064","030808092000","038654828053","043552212173","055834693126","056722222222","069269699999","073614589776","077309507872","077309508566","077309517723","077707777770","077909975500","081604473772","082206680373","086500890694","099299899999","099387023151","107374240701","107374350314","111669365761","111715151117","112112111515","120664186554","121112111116","121122123333","121234341234","125154246485","125154681859","125156221012","128849071355","128849119688","133311171717","138038989518","138039996761","142335040359","146631163932","154618913506","154618981337","167503850223","168105875173","171798822055","176093824734","180991279937","184683643560","188978571850","193273651350","193875768064","198170807744","201863679821","202464345851","206351662577","211053569081","211053571284","214748489636","223338384621","227777272227","228222212221","231928392159","236223312091","240518334688","241120125719","241120172995","249108134582","257698235608","257725775277","258298298021","261993159514","261993202138","262594904133","262926262629","266288176324","266676656666","266889354860","266969222969","271185690748","279172921304","279173017005","280028002850","287763042224","296352853851","296953697791","300647813567","304942825500","309840427390","313532736594","313731373137","318429876363","326417521042","326417654900","339302529819","339439505252","339902681924","339993939999","352187402549","352789572931","360777352688","360777373743","365072360916","365672672466","369367204554","373662332845","374262524765","377957268167","377957283630","382252110328","382787878787","390939003900","395137101436","399432108356","399966663933","403727081587","403727116700","404329704267","408022013230","408622319206","412316985902","412316999123","425201904580","433791717165","433791724802","433791756274","438086813760","438689193499","442381829047","447277942987","447499997477","451574014959","455266590848","459561545452","459561615506","460546054505","464618271827","468151520098","468752789922","468753931035","476741514074","477341997018","481808003717","485932627634","485933795976","489626386426","489626408549","493921390835","494524315038","498216217829","498216376581","498816567319","503113634236","507399127254","511101217852","511101222319","515996412419","520293831282","528281074708","528281138573","532576107246","533178384185","536870919017","536871062048","537471219500","541165967450","545460951961"]};
+</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var EPOCH = Date.UTC(2026, 10, 20);
+  var TABS = ['today', 'check', 'collection', 'stats', 'compare', 'rules'];
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- helpers ---------- */
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function dayNo(d) { return Math.round((Date.parse(d + 'T00:00:00Z') - EPOCH) / 864e5) + 1; }
+  function prevDay(d) { return new Date(Date.parse(d + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10); }
+  function pretty(s) { return s.slice(0, 4) + '-' + s.slice(4, 8) + '-' + s.slice(8); }
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function fmtN(n) { return Number(n).toLocaleString('en-US'); }
+  function oneIn(p) { return p > 0 ? '1 in ' + fmtN(Math.round(1 / p)) : 'rarer than 1 in ' + fmtN(DATA.N); }
+  function topPct(r) {
+    var t = (1 - r.mid) * 100;
+    if (t < 0.1) return '0.1%';
+    if (t < 10) return t.toFixed(1) + '%';
+    return Math.round(t) + '%';
+  }
+  function randomId() {
+    var a = new Uint32Array(4);
+    try { crypto.getRandomValues(a); } catch (e) { for (var i = 0; i < 4; i++) a[i] = Math.floor(Math.random() * 4294967296); }
+    return Array.prototype.map.call(a, function (x) { return x.toString(16).padStart(8, '0'); }).join('');
+  }
+  function xmur3(str) {
+    var h = 1779033703 ^ str.length;
+    for (var i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+    h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+  var cum = [], poolTotal = 0;
+  POOL.cs.forEach(function (c) { cum.push(poolTotal); poolTotal += c; });
+  var shardCache = {};
+  function loadShard(prefix) {
+    if (!shardCache[prefix]) {
+      shardCache[prefix] = fetch('fc/' + prefix + '.json').then(function (r) { if (!r.ok) throw new Error('shard ' + r.status); return r.json(); });
+      shardCache[prefix].catch(function () { delete shardCache[prefix]; });
+    }
+    return shardCache[prefix];
+  }
+  function toPlayer(row) { return { r: row[0], f: row[1], n: row[2], v: row[3] }; }
+  function slim(p) { return p ? { r: p.r, n: p.n, v: p.v, f: p.f } : null; }
+  var MIISET = {}; POOL.m.forEach(function (f) { MIISET[f] = 1; });
+  function pickIndex(seed, date) { return xmur3(seed + '|' + date) % POOL.n; }
+  function playerAt(i) {
+    var k = 0;
+    for (var j = 0; j < POOL.cs.length; j++) { if (i < cum[j] + POOL.cs[j]) { k = j; break; } }
+    return loadShard(POOL.ps[k]).then(function (rows) { return toPlayer(rows[i - cum[k]]); });
+  }
+  function rollFor(seed, date) { return playerAt(pickIndex(seed, date)); }
+  function lookupFC(s) {
+    if (POOL.ps.indexOf(s.slice(0, 2)) < 0) return Promise.resolve(null);
+    return loadShard(s.slice(0, 2)).then(function (rows) {
+      var lo = 0, hi = rows.length - 1;
+      while (lo <= hi) { var m = (lo + hi) >> 1, f = rows[m][1]; if (f === s) return toPlayer(rows[m]); if (f < s) lo = m + 1; else hi = m - 1; }
+      return null;
+    }).catch(function () { return null; });
+  }
+  function pname(p) { return (p.n || '').trim() || 'Unnamed racer'; }
+  var SIL = '<svg viewBox="0 0 64 64" fill="#55555d" aria-hidden="true"><circle cx="32" cy="22" r="11"/><path d="M10 58c0-13 9-21 22-21s22 8 22 21z"/></svg>';
+  function miiHTML(p) {
+    if (!p) return '<div class="mii ph" aria-hidden="true">?</div>';
+    if (p.f && MIISET[p.f]) return '<img class="mii" src="miis_fc/' + p.f + '.webp" width="112" height="112" alt="' + esc(pname(p)) + '’s Mii">';
+    return '<div class="mii ph" role="img" aria-label="No Mii saved for this racer">' + SIL + '</div>';
+  }
+  function whoHTML(p) {
+    return p ? '<div class="who"><strong>' + esc(pname(p)) + '</strong><span>#' + fmtN(p.r) + ' on the VR leaderboard · ' + fmtN(p.v) + ' VR</span></div>' : '';
+  }
+  var SOLO = {}; (DATA.solo || []).forEach(function (id) { SOLO[id] = 1; });   // badges only one racer in the list can score
+  function oddsText(b) { return b.special || SOLO[b.id] ? 'one of a kind' : oneIn(b.p); }
+  function markGold(root, v) {
+    if (v.sc.kept.some(function (b) { return b.tier === 'creator'; })) { var el = root.querySelector('.hero-digits'); if (el) el.classList.add('gold'); }
+  }
+
+  /* ---------- local state ---------- */
+  var mem = null;
+  function load() {
+    try { var r = localStorage.getItem('fcdle.v2'); if (r) { var o = JSON.parse(r); if (o && o.days) return o; } } catch (e) {}
+    return mem || { seed: null, days: {} };
+  }
+  function save() { mem = state; try { localStorage.setItem('fcdle.v2', JSON.stringify(state)); } catch (e) {} }
+  var state = load();
+  if (!state.seed) { state.seed = randomId(); save(); }
+
+  /* ---------- scoring views ---------- */
+  function racerCtx(pl) { return pl ? { r: pl.r, v: pl.v, mii: !!MIISET[pl.f] } : undefined; }
+  function scoreView(s, pl) {
+    var sc = FC.score(s, DATA.probs, racerCtx(pl)), r = FC.rank(sc.total, DATA.cdf), nt = FC.numberTier(r);
+    return { sc: sc, r: r, nt: nt };
+  }
+  var FAM_EMOJI = { run: '\ud83d\udd01', seq: '\ud83d\udd22', pal: '\ud83e\ude9e', div: '\ud83d\udd1f', sparse: '\u26aa', loop: '\ud83d\udd02', bpal: '\ud83e\ude9e', bmatch: '\ud83d\udc6f', nice: '\ud83d\ude0e', blaze: '\ud83c\udf3f', beast: '\ud83d\udc79', jackpot: '\ud83c\udfb0', leet: '\ud83d\udc7e', over9000: '\ud83d\udca5', bond: '\ud83d\udd75\ufe0f', cc150: '\ud83c\udfce\ufe0f', wii: '\ud83c\udfae', superyear: '\ud83d\udcc5', pi: '\ud83e\udd67', fib: '\ud83d\udc1a', heavy: '\u2696\ufe0f', sumlow: '\u2b07\ufe0f', sumhigh: '\u2b06\ufe0f', parity: '\u262f\ufe0f', div3: '3\ufe0f\u20e3', div7: '\ud83c\udfb0', div11: '\ud83d\udd5a', round: '\u2b55', lead0: '0\ufe0f\u20e3', prime: '\ud83d\udc8e', square: '\u2b1b', cube: '\ud83e\uddca', order: '\ud83d\udcc8', digitparity: '\u2696\ufe0f', digitrange: '\ud83c\udf9a\ufe0f', creator: '\ud83d\udc51', sixseven: '\ud83e\udd37', rank: '\ud83c\udfc1', vr: '\ud83d\udcc8', vrexact: '\ud83c\udf31', mii: '\ud83d\ude42', answer42: '\ud83c\udf0c', calc: '\ud83e\uddee', lucky8: '\ud83e\udde7', nines: '9\ufe0f\u20e3', emergency: '\ud83d\udea8', jenny: '\ud83d\udcde', apollo: '\ud83c\udf15', odyssey: '\ud83d\udef8', binary: '\ud83d\udcbe', golden: '\ud83c\udf3b', euler: '\ud83d\udcd0', birthday: '\ud83c\udf82', drum808: '\ud83e\udd41', hometown: '\ud83c\udfe0' };
+  var TIER_SQUARE = { trash: '\ud83d\udfeb', common: '\u2b1c', uncommon: '\ud83d\udfe9', rare: '\ud83d\udfe6', epic: '\ud83d\udfea', anomaly: '\ud83d\udfe7', mythic: '\ud83d\udfe5', creator: '\ud83d\udfe8' };
+  var SHARE_URL = 'https://claude.ai/artifact/LVAmZPyxgxvTQJAbGx4Sj1';
+  function shareText(s, date, v, p) {
+    // kept badges by EP, each followed by the lower levels of its family it also earned (like RNGdle's "earned" lines)
+    var lines = [];
+    v.sc.kept.forEach(function (b) {
+      lines.push(b);
+      v.sc.shadowed.forEach(function (x) { if (x.by === b.name && x.family === b.family) lines.push(x); });
+    });
+    var show = lines.slice(0, 3).map(function (b) { return (TIER_SQUARE[b.tier] || '\u2b1c') + ' ' + (FAM_EMOJI[b.family] || '\ud83c\udfb2') + ' ' + b.name; });
+    var more = lines.length - show.length;
+    var out = 'FCdle \ud83c\udfb2 ' + pretty(s) + (state.name ? ' (' + state.name + ')' : '') + '\n\n' + (TIER_SQUARE[v.nt.id] || '') + ' ' + v.nt.name.toUpperCase() + ' \u2022 Top ' + topPct(v.r) + '\n\n' + show.join('\n');
+    if (more > 0) out += '\n+' + more + ' more';
+    var sk = date === todayStr() ? streaks().cur : 0;
+    return out + '\n\n' + fmtN(v.sc.total) + ' EP' + (sk >= 2 ? ' \u2022 \ud83d\udd25 ' + sk + '-day streak' : '') + '\n' + SHARE_URL;
+  }
+  function resultHTML(s, v) {
+    var sc = v.sc, nt = v.nt, ticks = [50, 75, 90, 95, 99], pct = v.r.mid * 100;
+    var h = '<div class="result tier-' + nt.id + '"><div class="tile-ep' + (fmtN(sc.total).length >= 12 ? ' xl' : fmtN(sc.total).length >= 8 ? ' lg' : '') + '"><b>' + fmtN(sc.total) + '</b><small>EP</small></div>' +
+      '<div class="verdict"><span class="chip tier-' + nt.id + '">' + nt.name + '</span><span>Better than ' + (pct >= 99.9 ? '99.9' : pct.toFixed(pct >= 90 ? 1 : 0)) + '% of friend codes</span></div>' +
+      '<div class="gauge"><div class="meter" role="img" aria-label="This code scores higher than ' + Math.round(pct) + ' percent of friend codes"><div class="fill" style="width:' + pct.toFixed(2) + '%"></div>';
+    ticks.forEach(function (t) { h += '<i style="left:' + t + '%"></i>'; });
+    h += '</div><div class="ticks" aria-hidden="true">';
+    ticks.forEach(function (t) { if (t !== 95) h += '<span style="left:' + t + '%">' + t + '</span>'; });
+    h += '</div></div><div class="pills">';
+    sc.kept.forEach(function (b) { h += '<span class="pill tier-' + b.tier + '" title="' + esc(b.tierName + ': ' + b.desc + ', ' + oddsText(b)) + '">' + esc(b.name) + '<em>+' + fmtN(b.ep) + '</em></span>'; });
+    h += '</div><details class="more"><summary>Badge details</summary><ul class="badges">';
+    sc.kept.forEach(function (b) {
+      h += '<li class="tier-' + b.tier + '"><span class="chip">' + b.tierName + '</span><div class="b-main"><strong>' + esc(b.name) + '</strong><span>' + esc(b.desc) + '</span></div><div class="b-side"><span class="ep">+' + b.ep + ' EP</span><span class="odds">' + oddsText(b) + '</span></div></li>';
+    });
+    h += '</ul>';
+    if (sc.shadowed.length) {
+      h += '<p class="sub">Matched but not scored</p><ul class="shadow">';
+      sc.shadowed.forEach(function (b) { h += '<li>' + esc(b.name) + ' (' + esc(b.desc) + ') is covered by ' + esc(b.by) + '</li>'; });
+      h += '</ul>';
+    }
+    return h + '</details></div>';
+  }
+  function plateHTML(s, label) {
+    var d = s ? [s.slice(0, 4), s.slice(4, 8), s.slice(8)] : ['????', '????', '????'];
+    return '<div class="eyebrow">' + esc(label || '') + '</div><div class="hero-digits' + (s ? ' final' : '') + '" id="digits">' + d[0] + '<i>-</i>' + d[1] + '<i>-</i>' + d[2] + '</div>';
+  }
+  function attachShare(root, text) {
+    var btn = root.querySelector('[data-share]');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var area = root.querySelector('[data-sharearea]');
+      function fallback() { area.hidden = false; area.value = text; area.focus(); area.select(); btn.textContent = 'Select and copy below'; }
+      try {
+        navigator.clipboard.writeText(text).then(function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy result'; }, 1800); }, fallback);
+      } catch (e) { fallback(); }
+    });
+  }
+
+  /* ---------- stats ---------- */
+  function bestRun(keys) {
+    keys = keys.slice().sort(); var best = 0, run = 0, prev = null;
+    keys.forEach(function (k) { run = prev && prevDay(k) === prev ? run + 1 : 1; if (run > best) best = run; prev = k; });
+    return best;
+  }
+  function streaks() {
+    var best = bestRun(Object.keys(state.days));
+    var t = todayStr(), cur = 0, d = state.days[t] ? t : prevDay(t);
+    while (state.days[d]) { cur++; d = prevDay(d); }
+    return { cur: cur, best: best, doneToday: !!state.days[t] };
+  }
+  var STREAK_GOALS = [3, 7, 14, 30, 50, 100, 200, 365];
+  function renderStreakBar() {
+    var st = streaks(), el = $('#streakBar'), next = null;
+    STREAK_GOALS.forEach(function (g) { if (next === null && g > st.cur) next = g; });
+    var h;
+    if (st.cur === 0) h = '<span>🔥 <b>0</b> day streak</span><span class="dim">Roll every day to build one.</span>';
+    else {
+      h = '<span>🔥 <b>' + st.cur + '</b>-day streak</span>';
+      if (!st.doneToday) h += '<span class="dim">Roll today to keep it going.</span>';
+      else if (next) h += '<span class="dim">' + (next - st.cur) + (next - st.cur === 1 ? ' more day' : ' more days') + ' to a ' + next + '-day streak.</span>';
+      else h += '<span class="dim">Legendary.</span>';
+      if (st.best > st.cur) h += '<span class="dim">Best: ' + st.best + '</span>';
+    }
+    el.className = 'streakbar' + (st.cur >= 2 ? ' hot' : ''); el.innerHTML = h;
+  }
+  function collected() {
+    var c = {}, total = 0, bestEP = 0;
+    Object.keys(state.days).forEach(function (k) {
+      var sc = FC.score(state.days[k].fc, DATA.probs, racerCtx(state.days[k].p));
+      total += sc.total; if (sc.total > bestEP) bestEP = sc.total;
+      sc.kept.forEach(function (b) { c[b.id] = (c[b.id] || 0) + 1; });
+    });
+    return { c: c, total: total, bestEP: bestEP, played: Object.keys(state.days).length };
+  }
+  function renderStats() {
+    var st = streaks(), co = collected(), have = Object.keys(co.c).length;
+    $('#stats').innerHTML = [
+      [st.cur, 'streak'], [st.best, 'best streak'], [co.played, 'played'], [fmtN(co.total), 'total EP'], [have + '/' + FC.BADGES.length, 'badges']
+    ].map(function (x) { return '<span><b>' + x[0] + '</b>' + x[1] + '</span>'; }).join('');
+  }
+
+
+  /* ---------- achievements (streaks and collecting) ---------- */
+  var ACHIEVEMENTS = [
+    { id: 'streak7', name: 'One Week', desc: 'Roll 7 days in a row', kind: 'streak', n: 7, icon: '🔥' },
+    { id: 'streak30', name: 'Monthly', desc: 'Roll 30 days in a row', kind: 'streak', n: 30, icon: '🔥' },
+    { id: 'streak100', name: 'Centurion', desc: 'Roll 100 days in a row', kind: 'streak', n: 100, icon: '🔥' },
+    { id: 'coll25', name: 'Collector', desc: 'Find 25 different badges', kind: 'coll', n: 25, icon: '📚' },
+    { id: 'coll50', name: 'Curator', desc: 'Find 50 different badges', kind: 'coll', n: 50, icon: '📚' },
+    { id: 'coll75', name: 'Completionist', desc: 'Find 75 different badges', kind: 'coll', n: 75, icon: '📚' }
+  ];
+  /* Worked out from your saved rolls, so it can never drift: {id: date earned}. */
+  function earnedAchievements() {
+    var keys = Object.keys(state.days).sort(), got = {}, run = 0, prev = null, seen = {}, uniq = 0;
+    keys.forEach(function (k) {
+      run = prev && prevDay(k) === prev ? run + 1 : 1; prev = k;
+      var d = state.days[k], sc = FC.score(d.fc, DATA.probs, racerCtx(d.p));
+      sc.kept.forEach(function (b) { if (!seen[b.id]) { seen[b.id] = 1; uniq++; } });
+      ACHIEVEMENTS.forEach(function (a) {
+        if (got[a.id]) return;
+        if ((a.kind === 'streak' && run >= a.n) || (a.kind === 'coll' && uniq >= a.n)) got[a.id] = k;
+      });
+    });
+    return got;
+  }
+  function renderAchBanner() {
+    var el = $('#achBanner'); if (!el) return;
+    var d = state.days[todayStr()], got = earnedAchievements(), fresh = ACHIEVEMENTS.filter(function (a) { return got[a.id] === todayStr(); });
+    if (!d || !fresh.length) { el.className = 'ach-banner'; el.textContent = ''; return; }
+    el.className = 'ach-banner on';
+    el.innerHTML = '🏆 Achievement unlocked: <b>' + fresh.map(function (a) { return esc(a.name); }).join(', ') + '</b> <span class="muted">(' + fresh.map(function (a) { return esc(a.desc); }).join('; ') + ')</span>';
+  }
+  function renderAchGrid() {
+    var got = earnedAchievements(), n = Object.keys(got).length;
+    $('#achSummary').textContent = n + ' of ' + ACHIEVEMENTS.length + ' achievements unlocked. Streaks and collecting count from the rolls saved on this device.';
+    $('#achGrid').innerHTML = ACHIEVEMENTS.map(function (a) {
+      var on = !!got[a.id];
+      return '<div class="tile ach' + (on ? '' : ' locked') + '"><span class="chip" style="--c:#f4c430">' + a.icon + ' Achievement</span><strong>' + esc(a.name) + '</strong><small>' + esc(a.desc) + '</small><small>' + (on ? 'Unlocked on day ' + dayNo(got[a.id]) : 'Not unlocked yet') + '</small></div>';
+    }).join('');
+  }
+
+  /* ---------- Today ---------- */
+  var shownDate = todayStr(), spinning = false;
+  function renderToday() {
+    shownDate = todayStr();
+    $('#dayLabel').textContent = '#' + dayNo(shownDate);
+    var card = $('#todayCard'), d = state.days[shownDate];
+    if (!d) {
+      card.innerHTML = miiHTML(null) + plateHTML(null, 'Day ' + dayNo(shownDate)) +
+        '<p class="tag">One roll per day. One real racer. What will yours be?</p>' +
+        '<button class="gen" id="rollBtn" type="button">Roll</button><p class="note" id="rollNote">Reloading the page gives you the same code.</p>' +
+        '<div class="opts"><label><input type="checkbox" id="fastBox"' + (state.fast ? ' checked' : '') + '> Skip the animation</label><label><input type="checkbox" id="soundBox"' + (state.sound === false ? '' : ' checked') + '> Sound</label></div>' +
+        (Object.keys(state.days).length ? '' : '<div class="howto"><strong>How to play</strong><ol><li>Roll once a day. You get one real Mario Kart Wii friend code from the Retro Rewind leaderboard.</li><li>Patterns in the digits, and facts about the racer, earn badges. Each badge adds EP, and rarer ones add far more.</li><li>Come back every day to build a streak, and use Compare to see whose roll was best.</li></ol></div>');
+      $('#rollBtn').addEventListener('click', doRoll);
+      $('#fastBox').addEventListener('change', function () { state.fast = this.checked; save(); });
+      $('#soundBox').addEventListener('change', function () { state.sound = this.checked; save(); if (this.checked) tone(660, 0, 0.12, 0.05); });
+    } else {
+      var v = scoreView(d.fc, d.p);
+      card.innerHTML = (d.p ? miiHTML(d.p) : '') + plateHTML(d.fc, 'Day ' + dayNo(shownDate)) + whoHTML(d.p) + resultHTML(d.fc, v) +
+        '<p class="pct" id="pctNote" role="status" aria-live="polite"></p><div class="row"><button class="btn" data-share type="button">Copy result</button><button class="btn" data-compare type="button">Compare with friends</button></div><p class="note" id="submitNote"></p>' +
+        '<textarea class="share" data-sharearea hidden readonly rows="4" aria-label="Result text"></textarea>';
+      attachShare(card, shareText(d.fc, shownDate, v, d.p));
+      card.querySelector('[data-compare]').addEventListener('click', function () { $('#t-compare').click(); });
+      markGold(card, v);
+      updateSubmitNote(); renderPct();
+      if (!d.p) lookupFC(d.fc).then(function (pl) { if (pl && state.days[shownDate] === d) { d.p = slim(pl); save(); if (!spinning && shownDate === todayStr()) renderToday(); } });
+    }
+    renderStats(); renderStreakBar(); renderAchBanner();
+  }
+
+  /* ---------- roll effects: sound, skip, celebration ---------- */
+  var actx = null;
+  function tone(freq, delay, dur, vol) {
+    if (state.sound === false) return;   // on unless the player turns it off
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + (delay || 0);
+      o.type = 'triangle'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol || 0.05, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+    } catch (e) {}
+  }
+  function confetti(n, colors) {
+    var cv = document.createElement('canvas'), W = window.innerWidth, H = window.innerHeight;
+    cv.width = W; cv.height = H; cv.setAttribute('aria-hidden', 'true');
+    cv.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:50';
+    var cx = cv.getContext('2d'); if (!cx) return;
+    document.body.appendChild(cv);
+    var ps = [], i; for (i = 0; i < n; i++) ps.push({ x: W / 2 + (Math.random() - 0.5) * W * 0.3, y: H * 0.35, vx: (Math.random() - 0.5) * 12, vy: -Math.random() * 11 - 2, r: Math.random() * 6 + 3, c: colors[i % colors.length], a: Math.random() * 6, va: (Math.random() - 0.5) * 0.4 });
+    var t0 = Date.now(), life = 2800;
+    (function step() {
+      var el = Date.now() - t0; if (el > life) { cv.remove(); return; }
+      cx.clearRect(0, 0, W, H); cx.globalAlpha = Math.max(0, 1 - el / life);
+      ps.forEach(function (p) { p.vy += 0.28; p.x += p.vx; p.y += p.vy; p.vx *= 0.99; p.a += p.va; cx.save(); cx.translate(p.x, p.y); cx.rotate(p.a); cx.fillStyle = p.c; cx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); cx.restore(); });
+      requestAnimationFrame(step);
+    })();
+  }
+  var FX_TIERS = { epic: 70, anomaly: 110, mythic: 170, creator: 230 };
+  var FX_NOTES = { epic: [523, 659, 784], anomaly: [523, 659, 784, 1047], mythic: [523, 659, 784, 1047, 1319], creator: [523, 659, 784, 1047, 1319, 1568] };
+  function celebrate(date) {
+    var d = state.days[date]; if (!d) return;
+    var v = scoreView(d.fc, d.p), id = v.sc.kept.some(function (b) { return b.tier === 'creator'; }) ? 'creator' : v.nt.id;
+    if (!FX_TIERS[id]) return;
+    (FX_NOTES[id] || []).forEach(function (f, i) { tone(f, i * 0.11, 0.5, 0.06); });
+    if (reduce) return;
+    var res = document.querySelector('#todayCard .result'); if (res) res.classList.add('fx');
+    var base = res ? getComputedStyle(res).getPropertyValue('--c').trim() : '#f46444';
+    confetti(FX_TIERS[id], [base || '#f46444', '#ffffff', '#f46444', '#d44dba', '#ffc21a']);
+  }
+  function afterRoll(date) { renderToday(); submitToday(); celebrate(date); }
+
+  var skipFlag = false;
+  function doRoll() {
+    if (spinning) return;
+    var btn = $('#rollBtn'); btn.disabled = true;
+    var go = function () {
+      var date = todayStr(), seed = myId || state.seed;
+      var have = state.days[date] ? Promise.resolve() : rollFor(seed, date).then(function (p) {
+        if (!state.days[date]) { state.days[date] = { fc: p.f, seed: seed, p: slim(p), t: Date.now() }; save(); }
+      });
+      have.then(function () {
+        var fin = state.days[date].fc;
+        if (reduce || state.fast) { afterRoll(date); return; }
+        spinning = true; skipFlag = false;
+        btn.insertAdjacentHTML('afterend', '<button class="btn" id="skipBtn" type="button">Skip</button>');
+        $('#skipBtn').addEventListener('click', function () { skipFlag = true; });
+        var lastLock = 0;
+        var t0 = Date.now(), el = $('#digits'), HOLD = 2600, STEP = 600, END = HOLD + STEP * 12 + 800;
+        function frame() {
+          var ms = Date.now() - t0, lock = Math.max(0, Math.min(12, Math.floor((ms - HOLD) / STEP) + 1)), out = '';
+          if (ms >= END || skipFlag) { spinning = false; afterRoll(date); return; }
+          if (lock > lastLock) { tone(330 + lock * 45, 0, 0.09, 0.035); lastLock = lock; }
+          for (var i = 0; i < 12; i++) {
+            out += i < lock ? fin[i] : String(Math.floor(Math.random() * 10));   // each digit spins on its own, then locks left to right
+            if (i === 3 || i === 7) out += '<i>-</i>';
+          }
+          el.innerHTML = out;
+          setTimeout(frame, 110);
+        }
+        frame();
+      }).catch(function () {
+        btn.disabled = false; var n = $('#rollNote'); if (n) n.textContent = 'Could not load the racer list. Check your connection and roll again.';
+      });
+    };
+    if (sharedReady) go(); else sharedPromise.then(go);
+  }
+
+  /* ---------- Score a code ---------- */
+  var EXAMPLE = '000100100100';
+  var checkToken = 0;
+  function showCheck(s, note) {
+    var tok = ++checkToken;
+    renderCheck(s, note, null);
+    lookupFC(s).then(function (pl) { if (tok === checkToken && pl) renderCheck(s, note, slim(pl)); });
+  }
+  function renderCheck(s, note, p) {
+    var v = scoreView(s, p), regions = FC.checksumRegions(s);
+    var chk = regions.length ? 'Checksum matches the ' + regions.join(' / ') + ' release of Mario Kart Wii.' : 'Checksum does not match any Mario Kart Wii region, so this may not be a real code. Scored anyway.';
+    $('#checkCard').innerHTML = (note ? '<p class="note">' + esc(note) + '</p>' : '') + (p ? miiHTML(p) : '') + plateHTML(s, '') + whoHTML(p) +
+      '<p class="note">' + chk + '</p>' + resultHTML(s, v) +
+''; 
+    markGold($('#checkCard'), v);
+  }
+  function onInput() {
+    var inp = $('#fcInput'), msg = $('#fcMsg');
+    var raw = inp.value, digitsOnly = raw.replace(/[^0-9]/g, '').slice(0, 12);
+    var f = digitsOnly.replace(/(\d{4})(?=\d)/g, '$1-');
+    if (/[^0-9\s-]/.test(raw)) { msg.textContent = 'Use digits only. Spaces and dashes are fine.'; msg.className = 'msg err'; inp.setAttribute('aria-invalid', 'true'); }
+    else { msg.textContent = ''; msg.className = 'msg'; inp.removeAttribute('aria-invalid'); }
+    inp.value = f;
+    if (digitsOnly.length === 12) { showCheck(digitsOnly); msg.textContent = ''; }
+    else if (digitsOnly.length > 0 && !/[^0-9\s-]/.test(raw)) { msg.textContent = (12 - digitsOnly.length) + ' more digits to go.'; }
+  }
+  $('#fcInput').addEventListener('input', onInput);
+  /* ---------- Collection ---------- */
+  function renderCollection() {
+    renderAchGrid();
+    var co = collected(), have = Object.keys(co.c).length;
+    $('#collSummary').textContent = have + ' of ' + FC.BADGES.length + ' badges found. Rarest first. A badge counts when it scored on one of your daily rolls.';
+    var list = FC.BADGES.map(function (b) { var p = DATA.probs[b.id] || 0; return { b: b, p: p, t: b.special ? FC.SPECIAL_TIER : FC.badgeTier(p) }; });
+    list.sort(function (x, y) { return x.p - y.p || x.b.name.localeCompare(y.b.name); });
+    $('#collGrid').innerHTML = list.map(function (x) {
+      var n = co.c[x.b.id] || 0;
+      return '<div class="tile tier-' + x.t.id + (n ? '' : ' locked') + '"><span class="chip">' + x.t.name + '</span><strong>' + esc(x.b.name) + '</strong><small>' + esc(x.b.desc) + '</small><small>' + oddsText({ id: x.b.id, p: x.p, special: x.b.special }) + (n ? ' · found ' + n + (n === 1 ? ' time' : ' times') : ' · not found yet') + '</small></div>';
+    }).join('');
+  }
+
+  /* ---------- Rules ---------- */
+  function renderRules() {
+    var epRange = ['Under 1,000', '1,000 to 10,000', '10,000 to 100,000', '100,000 to 1 million', '1 million to 10 million', '10 million and up'];
+    var bt = FC.BADGE_TIERS, labels = ['More than 10%', '1% to 10%', '0.1% to 1%', '0.01% to 0.1%', '0.001% to 0.01%', 'Under 0.001%'];
+    var nt = [['Mythic', 'Top 1%'], ['Anomaly', 'Top 5% to 1%'], ['Epic', 'Top 10% to 5%'], ['Rare', 'Top 25% to 10%'], ['Uncommon', 'Top 50% to 25%'], ['Common', 'Bottom 50%'], ['Trash', 'Bottom 1%']];
+    var h = '<h2>How a code is scored</h2>' +
+      '<p>Your 12 digits are checked against ' + FC.BADGES.length + ' pattern badges: runs of one digit, counting up or down, palindromes, repeating blocks, round numbers, primes, meme numbers and a few Mario Kart nods. Each badge you earn adds EP (entropy points). A badge is worth 100 divided by its odds, so a 1 in 11 badge is 1,100 EP and a 1 in 1,000 badge is 100,000 EP. Rarer badges are worth far more.</p>' +
+      '<h3 class="sub">Badge rarity and EP</h3><div class="tbl"><table><thead><tr><th>Tier</th><th>Odds of the badge</th><th>EP each</th></tr></thead><tbody>';
+    bt.forEach(function (t, i) { h += '<tr><td><span class="chip tier-' + t.id + '">' + t.name + '</span></td><td>' + labels[i] + ' of codes</td><td>' + epRange[i] + '</td></tr>'; });
+    h += '<tr><td><span class="chip tier-creator">Creator</span></td><td>Two special friend codes</td><td>' + fmtN(FC.SPECIAL_TIER.ep) + '</td></tr>';
+    h += '</tbody></table></div><p class="muted small" style="margin-top:8px">Odds come from scoring 4 million simulated friend codes, so a badge’s EP reflects how often it really shows up. Odds are floored at 1 in a million, which caps one badge at 100 million EP. A badge that only one racer in the list can earn shows “one of a kind”, like the two creator codes.</p>' +
+      '<h3 class="sub">Families</h3><p>Some badges are alternatives in the same family, like Triple, Quad and Quint for repeated digits. Only the highest one your code earns counts.</p>' +
+      '<h3 class="sub">Code rarity</h3><p style="margin-bottom:8px">Your EP total is compared with all simulated codes to place it in a tier.</p><div class="tbl"><table><thead><tr><th>Tier</th><th>Where you land</th></tr></thead><tbody>';
+    nt.forEach(function (t) { h += '<tr><td><span class="chip tier-' + t[0].toLowerCase() + '">' + t[0] + '</span></td><td>' + t[1] + '</td></tr>'; });
+    h += '</tbody></table></div>' +
+      '<h3 class="sub">The daily roll</h3><p>Every UTC day you get one roll: a real friend code picked from all ' + fmtN(POOL.n) + ' racers on the Retro Rewind (RWFC) VR leaderboard. Players the leaderboard marks as suspicious are left out. The pick comes from your player ID and the date, so reloading gives the same racer and tomorrow gives a new one. The list is a snapshot from November 20, 2026, so ranks and VR may have moved since. Only 200 of the top racers have a Mii saved here; everyone else gets a silhouette.</p>' +
+      '<h3 class="sub">Names and comparing</h3><p>Pick any name on the Today tab. It’s saved on this device and added to your copied result. To compare with friends without signing in, paste their copied results into the Compare tab. Each score is worked out again from the friend code, so an edited EP doesn’t change the ranking.</p>' +
+      '<h3 class="sub">Racer badges</h3><p>Some badges depend on who you rolled, not on the digits: a top 1,000, 100, 10 or #1 spot on the VR leaderboard, 25,000, 50,000 or 100,000 VR, and exactly 10,000 VR (Fresh Start). Their odds are the share of real racers who qualify. They count when you roll the racer, or when you score a code that belongs to one.</p>' +
+      '<h3 class="sub">Saving and settings</h3><p>Everything is saved in this browser. The Stats tab has a save code you can copy and restore on another device, and restoring checks each roll against the daily pick so a code can’t be edited into better rolls. Before you roll you can turn on Skip the animation and turn Sound off. Epic, Anomaly and Mythic rolls get a glow and confetti.</p>' +
+      '<h3 class="sub">Achievements</h3><p>Separate from EP: unlock One Week, Monthly and Centurion for 7, 30 and 100-day streaks, and Collector, Curator and Completionist for finding 25, 50 and 75 different badges. They are worked out from the rolls saved on this device.</p>' +
+      '<h3 class="sub">Streaks and stats</h3><p>Roll on consecutive UTC days to build a streak. It shows on the Today tab and in your copied result. The Stats tab tracks your best roll, rarest badge and every day you have played. When others who can post have rolled the same day, Today also shows how your roll ranks among them. All of it is recalculated from each roll.</p>' +
+      '<h3 class="sub">About the checksum note</h3><p>Real friend codes carry a hidden checksum tied to the game and region. The Score a code tab tells you if yours matches. A mismatch never lowers the score.</p>';
+    $('#rulesCard').innerHTML = h;
+  }
+
+  /* ---------- Leaderboard (shared database, signed-in viewers) ---------- */
+  var dbh = null, userh = null, myId = null, sharedReady = false, rows = null, boardErr = '', boardMode = 'today', submitState = '', scope = 'everyone', myFriends = [], myLikes = [];
+  var sharedPromise = (async function () {
+    try {
+      if (typeof claude === 'undefined') return;
+      var res = await Promise.all([claude.use('db'), claude.use('user')]);
+      dbh = res[0]; userh = res[1];
+      if (userh && userh.id) myId = await userh.id();
+    } catch (e) { dbh = null; }
+    sharedReady = true;
+    if (dbh && myId) {
+      var timer = setTimeout(function () { if (rows === null) { boardErr = 'slow'; renderBoard(); } }, 10000);
+      try {
+        dbh.collection('scores').onSnapshot(function (snap) { clearTimeout(timer); boardErr = ''; rows = snap.docs.map(function (d) { return { id: d.id, data: d.data() || {} }; }); syncFriends(); renderBoard(); renderPct(); if ($('#p-feed').classList.contains('on')) renderFeed(); },
+          function (err) { clearTimeout(timer); boardErr = err && err.code || 'error'; renderBoard(); });
+      } catch (e) { boardErr = 'error'; }
+      submitToday();
+    }
+    renderBoard(); renderToday();
+  })();
+
+  function updateSubmitNote() {
+    var n = $('#submitNote'); if (!n) return;
+    n.textContent = submitState === 'ok' ? 'Counted in today’s ranking.' : submitState === 'ro' ? 'Your access is view-only, so this roll stays on this device.' : submitState === 'skip' ? 'This roll was made before you signed in, so it stays on this device.' : '';
+  }
+  var pctToken = 0;
+  async function renderPct() {
+    var el = $('#pctNote'); if (!el) return;
+    var d = state.days[todayStr()]; if (!d) { el.textContent = ''; return; }
+    if (!dbh || !myId || rows === null) { el.textContent = ''; return; }
+    var tok = ++pctToken, all; try { all = await boardEntries(); } catch (e) { return; }
+    if (tok !== pctToken) return; el = $('#pctNote'); if (!el) return;
+    var mine = FC.score(d.fc, DATA.probs, racerCtx(d.p)).total;
+    var others = all.filter(function (e) { return e.todayEP !== null && e.id !== myId; });
+    if (!others.length) { el.innerHTML = 'No one else has posted a roll today yet.'; return; }
+    var below = 0, tie = 0, above = 0;
+    others.forEach(function (e) { if (e.todayEP < mine) below++; else if (e.todayEP === mine) tie++; else above++; });
+    var pct = Math.round((below + tie / 2) / others.length * 100), n = others.length;
+    el.innerHTML = 'You beat <b>' + pct + '%</b> of the ' + n + (n === 1 ? ' other player' : ' other players') + ' who rolled today. <b>#' + (above + 1) + '</b> of ' + (n + 1) + '.';
+  }
+  var submitting = false;
+  async function submitToday() {
+    if (!dbh || !myId || submitting) return;
+    var date = todayStr(), d = state.days[date];
+    if (!d) return;
+    if (d.seed !== myId) { submitState = 'skip'; updateSubmitNote(); return; }
+    submitting = true;
+    try {
+      var ref = dbh.doc('scores/' + myId), snap = await ref.get(), cur = snap.exists ? snap.data() : null;
+      if (!(cur && cur.days && cur.days[date])) {
+        var entry = { seed: d.seed, fc: d.fc, t: d.t || Date.now() };
+        if (cur) await ref.update({ days: (function () { var o = {}; o[date] = entry; return o; })() });
+        else { var days = {}; days[date] = entry; await ref.set({ days: days }); }
+      }
+      submitState = 'ok';
+    } catch (e) { submitState = 'ro'; }
+    submitting = false; updateSubmitNote();
+  }
+  /* ---------- friends ---------- */
+  var MAX_FRIENDS = 200;
+  function syncFriends() {
+    var mine = (rows || []).filter(function (r) { return r.id === myId; })[0];
+    var f = mine && mine.data && mine.data.friends;
+    myFriends = Array.isArray(f) ? f.filter(function (x) { return typeof x === 'string' && x !== myId; }).slice(0, MAX_FRIENDS) : [];
+    var l = mine && mine.data && mine.data.likes;
+    myLikes = Array.isArray(l) ? l.filter(function (x) { return typeof x === 'string'; }).slice(0, 400) : [];
+  }
+  function friendMsg(text, bad) { var m = $('#friendMsg'); m.textContent = text || ''; m.className = 'msg' + (bad ? ' err' : ''); }
+  async function saveFriends(list) {
+    myFriends = list; renderBoard(); if ($('#p-feed').classList.contains('on')) renderFeed();
+    try {
+      var ref = dbh.doc('scores/' + myId), snap = await ref.get();
+      if (snap.exists) await ref.update({ friends: list }); else await ref.set({ friends: list });
+    } catch (e) { friendMsg('Could not save your friends list. Your access may be view-only.', true); }
+  }
+  function toggleFriend(id) {
+    if (id === myId) return;
+    var i = myFriends.indexOf(id);
+    if (i >= 0) saveFriends(myFriends.filter(function (x) { return x !== id; }));
+    else if (myFriends.length >= MAX_FRIENDS) friendMsg('You can have up to ' + MAX_FRIENDS + ' friends.', true);
+    else saveFriends(myFriends.concat([id]));
+  }
+  function setScope(s) {
+    scope = s;
+    $('#fEveryone').setAttribute('aria-pressed', s === 'everyone' ? 'true' : 'false');
+    $('#fFriends').setAttribute('aria-pressed', s === 'friends' ? 'true' : 'false');
+    renderBoard();
+  }
+  $('#fEveryone').addEventListener('click', function () { setScope('everyone'); });
+  $('#fFriends').addEventListener('click', function () { setScope('friends'); });
+  $('#addFriend').addEventListener('click', function () {
+    var v = ($('#addIdField').value || '').trim();
+    if (!v) { friendMsg('Paste your friend’s player ID first.', true); return; }
+    if (v === myId) { friendMsg('That’s your own ID.', true); return; }
+    if (myFriends.indexOf(v) >= 0) { friendMsg('You’re already friends.', true); return; }
+    if (!(rows || []).some(function (r) { return r.id === v; })) { friendMsg('No player with that ID has posted a roll yet.', true); return; }
+    $('#addIdField').value = ''; friendMsg('Friend added.'); toggleFriend(v);
+  });
+  $('#copyId').addEventListener('click', function () {
+    var f = $('#myIdField'); f.focus(); f.select();
+    try { navigator.clipboard.writeText(f.value).then(function () { friendMsg('Player ID copied.'); }, function () { friendMsg('Press Ctrl+C to copy the selected ID.'); }); } catch (e) { friendMsg('Press Ctrl+C to copy the selected ID.'); }
+  });
+
+  async function boardEntries() {
+    var today = todayStr(), now = Date.parse(today + 'T00:00:00Z'), cands = [];
+    (rows || []).forEach(function (r) {
+      var days = r.data.days || {};
+      Object.keys(days).forEach(function (date) {
+        var e = days[date], t = Date.parse(date + 'T00:00:00Z');
+        if (!e || isNaN(t) || t > now || t < EPOCH || e.seed !== r.id || typeof e.fc !== 'string') return;
+        var p = FC.parse(e.fc); if (!p.ok) return;
+        cands.push({ id: r.id, date: date, s: p.s, seed: e.seed });
+      });
+    });
+    await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; }, function () {}); }));
+    var by = {};
+    cands.forEach(function (c) {
+      if (!c.pl || c.pl.f !== c.s) return;
+      var o = by[c.id] || (by[c.id] = { id: c.id, total: 0, bestEP: 0, n: 0, todayEP: null, todayFC: null, todayPl: null, top: '', dates: [] });
+      o.dates.push(c.date);
+      var sc = FC.score(c.s, DATA.probs, racerCtx(c.pl));
+      o.total += sc.total; o.n++; if (sc.total > o.bestEP) o.bestEP = sc.total;
+      if (c.date === today) { o.todayEP = sc.total; o.todayFC = c.s; o.todayPl = c.pl; o.top = sc.kept[0] ? sc.kept[0].name : ''; }
+    });
+    return Object.keys(by).map(function (k) { return by[k]; });
+  }
+  var boardToken = 0;
+  var SHOW_BOARD = false;   // the Leaderboard and Feed tabs were removed: link viewers can't post to a shared board
+  async function renderBoard() {
+    if (!SHOW_BOARD) return;
+    var msg = $('#boardMsg'), list = $('#boardList'), tok = ++boardToken;
+    if (!dbh || !myId) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = 'The leaderboard needs you to be signed in to Claude. Your rolls and streaks still save on this device, and you can use the page without signing in.'; return; }
+    if (boardErr && rows === null) { list.innerHTML = ''; msg.className = 'msg err'; msg.textContent = boardErr === 'slow' ? 'The leaderboard is taking a while to load.' : 'The leaderboard could not be loaded right now.'; return; }
+    if (rows === null) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = 'Loading the leaderboard...'; return; }
+    var all; try { all = await boardEntries(); } catch (e) { all = []; }
+    if (tok !== boardToken) return;
+    $('#friendBox').hidden = scope !== 'friends'; $('#myIdField').value = myId;
+    var items, byId = {}; all.forEach(function (e) { byId[e.id] = e; });
+    var val = function (e) { return boardMode === 'today' ? e.todayEP : e.total; };
+    if (scope === 'friends') {
+      var ids = [myId].concat(myFriends);
+      items = ids.map(function (id) { return byId[id] || { id: id, total: 0, bestEP: 0, n: 0, todayEP: null, todayFC: null, todayPl: null, top: '', idle: true }; });
+      items.forEach(function (e) { e.idle = boardMode === 'today' ? e.todayEP === null : !e.n; });
+      items.sort(function (a, b) { if (a.idle !== b.idle) return a.idle ? 1 : -1; return (val(b) || 0) - (val(a) || 0); });
+      msg.className = 'msg'; msg.textContent = myFriends.length ? 'You and your friends. Scores are recalculated from each roll, so they can’t be edited.' : 'No friends yet. Add one below, or switch to Everyone and tap Add next to a player.';
+    } else {
+      if (boardMode === 'today') items = all.filter(function (e) { return e.todayEP !== null; }).sort(function (a, b) { return b.todayEP - a.todayEP; });
+      else items = all.slice().sort(function (a, b) { return b.total - a.total; });
+      msg.className = 'msg'; msg.textContent = items.length ? 'Scores are recalculated from each roll, so they can’t be edited.' : (boardMode === 'today' ? 'Nobody has rolled yet today.' : 'No rolls posted yet.');
+    }
+    renderHof();
+    var names = {};
+    try { if (userh && userh.profiles && items.length) names = await userh.profiles(items.map(function (e) { return e.id; })) || {}; } catch (e) {}
+    if (tok !== boardToken) return;
+    list.innerHTML = '';
+    items.forEach(function (e, i) {
+      var li = document.createElement('li'); if (e.id === myId) li.className = 'me'; else if (e.idle) li.className = 'idle';
+      var pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = i + 1;
+      var who = document.createElement('div'); var nm = document.createElement('strong');
+      var pl = e.todayPl; if (pl && MIISET[pl.f]) { var av = document.createElement('img'); av.className = 'av'; av.src = 'miis_fc/' + pl.f + '.webp'; av.alt = ''; who.appendChild(av); }
+      nm.textContent = (names[e.id] && names[e.id].name) || (e.id === myId ? 'You' : 'Player'); who.appendChild(nm);
+      var sub = document.createElement('span'); sub.className = 'muted small'; sub.style.display = 'block';
+      sub.textContent = e.idle ? (boardMode === 'today' ? 'Hasn’t rolled yet today' : 'No rolls yet') : boardMode === 'today' ? (e.todayPl ? pname(e.todayPl) + ' · ' : '') + pretty(e.todayFC) + (e.top ? ' · ' + e.top : '') : e.n + (e.n === 1 ? ' day' : ' days') + ' · best day ' + fmtN(e.bestEP) + ' EP' + (e.dates && bestRun(e.dates) >= 2 ? ' · 🔥 ' + bestRun(e.dates) + '-day best streak' : '');
+      who.appendChild(sub);
+      var ep = document.createElement('b'); ep.textContent = e.idle ? '–' : fmtN(boardMode === 'today' ? e.todayEP : e.total) + ' EP'; ep.style.fontVariantNumeric = 'tabular-nums';
+      var sp = document.createElement('span');
+      if (e.id !== myId) {
+        var isF = myFriends.indexOf(e.id) >= 0, fb = document.createElement('button');
+        fb.type = 'button'; fb.className = 'fbtn' + (isF ? ' on' : ''); fb.textContent = isF ? 'Friends ✓' : 'Add';
+        fb.setAttribute('aria-label', (isF ? 'Remove ' : 'Add ') + ((names[e.id] && names[e.id].name) || 'this player') + (isF ? ' from friends' : ' as a friend'));
+        (function (id) { fb.addEventListener('click', function () { toggleFriend(id); }); })(e.id);
+        sp.appendChild(fb);
+      }
+      li.appendChild(pos); li.appendChild(who); li.appendChild(ep); li.appendChild(sp); list.appendChild(li);
+    });
+  }
+  $('#bToday').addEventListener('click', function () { boardMode = 'today'; $('#bToday').setAttribute('aria-pressed', 'true'); $('#bAll').setAttribute('aria-pressed', 'false'); renderBoard(); });
+  $('#bAll').addEventListener('click', function () { boardMode = 'all'; $('#bAll').setAttribute('aria-pressed', 'true'); $('#bToday').setAttribute('aria-pressed', 'false'); renderBoard(); });
+
+
+
+  /* ---------- name (guest) and compare ---------- */
+  function cleanName(v) { return String(v || '').replace(/[\u0000-\u001f\u007f()<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 20); }
+  function renderName() {
+    $('#nameShow').innerHTML = state.name ? 'Playing as <strong>' + esc(state.name) + '</strong>' : 'Playing as a guest';
+    $('#nameEdit').textContent = state.name ? 'Change' : 'Choose a name';
+  }
+  $('#nameEdit').addEventListener('click', function () {
+    $('#nameForm').hidden = false; $('#nameEdit').hidden = true; var i = $('#nameInput'); i.value = state.name || ''; i.focus(); i.select();
+  });
+  /* Reserved name: the creator's name needs a password. The check runs in the page, so it deters casual copying, not a determined reader of the code. */
+  var RESERVED = {"salt": "BNJVoUF+41CX0B9rp2NF1Q==", "iters": 200000, "hash": "ZnRSQcZUSWZVhx0J+LY4nYrF4+Azpo9ayghM1bJlqFQ="};
+  function normName(n) { return String(n).toLowerCase().replace(/[01345@$7]/g, function (c) { return { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '@': 'a', '$': 's', '7': 't' }[c]; }).replace(/[^a-z]/g, ''); }
+  function isReserved(n) { var x = normName(n); return x.indexOf('steperd') >= 0 || x.indexOf('stepperd') >= 0; }
+  function b64(s) { var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+  async function pwOk(pw) {
+    try {
+      var key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+      var bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: b64(RESERVED.salt), iterations: RESERVED.iters }, key, 256));
+      var want = b64(RESERVED.hash), d = 0; for (var i = 0; i < want.length; i++) d |= bits[i] ^ want[i];
+      return want.length === bits.length && d === 0;
+    } catch (e) { return false; }
+  }
+  if (state.name && isReserved(state.name) && !state.unlock) { state.name = ''; save(); }
+  async function saveName() {
+    var name = cleanName($('#nameInput').value), pwEl = $('#namePw'), msg = $('#nameMsg');
+    msg.textContent = ''; msg.className = 'msg';
+    if (name && isReserved(name) && !state.unlock) {
+      if (pwEl.hidden) { pwEl.hidden = false; pwEl.focus(); msg.textContent = 'That name is reserved. Enter its password to use it.'; return; }
+      if (!(await pwOk(pwEl.value))) { msg.className = 'msg err'; msg.textContent = 'Wrong password.'; return; }
+      state.unlock = true;
+    }
+    state.name = name; save(); pwEl.value = ''; pwEl.hidden = true;
+    $('#nameForm').hidden = true; $('#nameEdit').hidden = false; renderName(); renderToday();
+  }
+  $('#nameSave').addEventListener('click', saveName);
+  $('#nameInput').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') saveName(); });
+  $('#namePw').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') saveName(); });
+
+  async function runCompare() {
+    var text = $('#cmpIn').value, re = /FCdle[^\n]*?(\d{4}-\d{4}-\d{4})(?:[ \t]*\(([^)\n]{1,20})\))?/g, m, seen = {}, items = [];
+    while ((m = re.exec(text))) {
+      var s = m[1].replace(/-/g, ''), nm = cleanName(m[2]), k = s + '|' + nm;
+      if (!seen[k]) { seen[k] = 1; items.push({ s: s, name: nm || 'Unknown', mine: false }); }
+    }
+    var d = state.days[todayStr()];
+    if (d && !items.some(function (x) { return x.s === d.fc; })) items.push({ s: d.fc, name: state.name || 'You', mine: true });
+    var msg = $('#cmpMsg'), list = $('#cmpList');
+    if (!items.length) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = text.trim() ? 'No results found. Paste messages that start with “FCdle”.' : 'Paste at least one result first.'; return; }
+    await Promise.all(items.map(function (x) { return lookupFC(x.s).then(function (p) { x.pl = p; }); }));
+    var skipped = items.filter(function (x) { return !x.pl; }).length;
+    items = items.filter(function (x) { return x.pl; });   // only codes that belong to a real leaderboard racer can be rolled
+    if (!items.length) { list.innerHTML = ''; msg.className = 'msg err'; msg.textContent = 'None of those codes belong to a racer on the leaderboard, so they can’t be real rolls.'; return; }
+    items.forEach(function (x) { x.sc = FC.score(x.s, DATA.probs, racerCtx(x.pl)); });
+    items.sort(function (a, b) { return b.sc.total - a.sc.total; });
+    msg.className = 'msg'; msg.textContent = items.length + (items.length === 1 ? ' result' : ' results') + ', highest EP first.' + (skipped ? ' Skipped ' + skipped + ' with a code that isn’t a leaderboard racer.' : '');
+    list.innerHTML = items.map(function (x, i) {
+      var top = x.sc.kept[0] ? x.sc.kept[0].name : '';
+      return '<li' + (x.mine ? ' class="me"' : '') + '><span class="pos">' + (i + 1) + '</span><div><strong>' + esc(x.name) + '</strong><span class="muted small" style="display:block">' + (x.pl ? esc(pname(x.pl)) + ' · ' : '') + esc(pretty(x.s)) + (top ? ' · ' + esc(top) : '') + '</span></div><b style="font-variant-numeric:tabular-nums">' + fmtN(x.sc.total) + ' EP</b><span></span></li>';
+    }).join('');
+  }
+  $('#cmpGo').addEventListener('click', runCompare);
+  $('#cmpClear').addEventListener('click', function () { $('#cmpIn').value = ''; $('#cmpList').innerHTML = ''; $('#cmpMsg').textContent = ''; });
+
+  /* ---------- feed ---------- */
+  var FEED_MILESTONES = [10, 25, 50, 75];
+  async function verifiedRolls() {
+    var today = todayStr(), now = Date.parse(today + 'T00:00:00Z'), cands = [];
+    (rows || []).forEach(function (r) {
+      var days = r.data.days || {};
+      Object.keys(days).forEach(function (date) {
+        var e = days[date], tt = Date.parse(date + 'T00:00:00Z');
+        if (!e || isNaN(tt) || tt > now || tt < EPOCH || e.seed !== r.id || typeof e.fc !== 'string') return;
+        var p = FC.parse(e.fc); if (!p.ok) return;
+        var t = (typeof e.t === 'number' && e.t > 0 && e.t <= Date.now() + 60000 && new Date(e.t).toISOString().slice(0, 10) === date) ? e.t : null;
+        cands.push({ id: r.id, date: date, s: p.s, seed: e.seed, t: t });
+      });
+    });
+    await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; }, function () {}); }));
+    return cands.filter(function (c) { return c.pl && c.pl.f === c.s; });
+  }
+  function ago(ms, date) {
+    if (ms == null) return date;
+    var s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+  function heartBtn(key, counts) {
+    var on = myLikes.indexOf(key) >= 0, n = counts[key] || 0;
+    return '<button type="button" class="heart' + (on ? ' on' : '') + '" data-like="' + esc(key) + '" aria-pressed="' + on + '" aria-label="' + (on ? 'Unlike' : 'Like') + '">' + (on ? '♥' : '♡') + (n ? '<small>' + n + '</small>' : '') + '</button>';
+  }
+  function fpill(b) { return '<span class="fpill tier-' + b.tier + '" title="' + esc(b.tierName + ': ' + b.desc) + '">' + (FAM_EMOJI[b.family] || '🎲') + ' ' + esc(b.name) + '</span>'; }
+  var feedToken = 0;
+  async function renderFeed() {
+    if (!SHOW_BOARD) return;
+    var msg = $('#feedMsg'), list = $('#feedList'), tok = ++feedToken;
+    if (!dbh || !myId) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = 'Friends and the feed need you to be signed in to Claude. Your rolls still save on this device.'; return; }
+    if (boardErr && rows === null) { list.innerHTML = ''; msg.className = 'msg err'; msg.textContent = 'The feed could not be loaded right now.'; return; }
+    if (rows === null) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = 'Loading the feed...'; return; }
+    var vr; try { vr = await verifiedRolls(); } catch (e) { vr = []; }
+    if (tok !== feedToken) return;
+    var counts = {};
+    rows.forEach(function (r) { (Array.isArray(r.data.likes) ? r.data.likes : []).forEach(function (k) { if (typeof k === 'string') counts[k] = (counts[k] || 0) + 1; }); });
+    // per player: what each roll added to their collection
+    var byUser = {}; vr.forEach(function (c) { (byUser[c.id] = byUser[c.id] || []).push(c); });
+    Object.keys(byUser).forEach(function (id) {
+      var seen = {}, n = 0;
+      byUser[id].sort(function (a, b) { return a.date < b.date ? -1 : 1; }).forEach(function (c) {
+        var sc = FC.score(c.s, DATA.probs, racerCtx(c.pl)); c.sc = sc; c.fresh = [];
+        sc.kept.forEach(function (b) { if (!seen[b.id]) { seen[b.id] = 1; c.fresh.push(b); n++; } });
+        c.unique = n; c.milestone = null;
+        FEED_MILESTONES.forEach(function (m) { if (n >= m && n - c.fresh.length < m) c.milestone = m; });
+      });
+    });
+    var who = {}; who[myId] = 1; myFriends.forEach(function (f) { who[f] = 1; });
+    var posts = vr.filter(function (c) { return who[c.id]; });
+    posts.sort(function (a, b) { return (b.t || Date.parse(b.date + 'T00:00:00Z')) - (a.t || Date.parse(a.date + 'T00:00:00Z')); });
+    posts = posts.slice(0, 40);
+    msg.className = 'msg';
+    msg.textContent = !myFriends.length ? 'Add friends on the Leaderboard tab to see what they roll. Your own rolls show up here too.' : (posts.length ? '' : 'Nothing here yet.');
+    var names = {};
+    try { if (userh && userh.profiles && posts.length) names = await userh.profiles(posts.map(function (c) { return c.id; })) || {}; } catch (e) {}
+    if (tok !== feedToken) return;
+    list.innerHTML = posts.map(function (c) {
+      var sc = c.sc, r = FC.rank(sc.total, DATA.cdf), nt = FC.numberTier(r), key = c.id + '|' + c.date;
+      var nm = (names[c.id] && names[c.id].name) || (c.id === myId ? 'You' : 'Player');
+      var all = []; sc.kept.forEach(function (b) { all.push(b); sc.shadowed.forEach(function (x) { if (x.by === b.name && x.family === b.family) all.push(x); }); });
+      var top = all.slice(0, 3), more = all.length - top.length;
+      var h = '<article class="post tier-' + nt.id + '"><div class="post-top"><span class="post-name">' + esc(nm) + '</span><span class="post-time">' + esc(ago(c.t, c.date)) + '</span></div>' +
+        '<div class="post-mid"><div class="post-digits">' + esc(pretty(c.s)) + '</div><div class="post-meta"><span class="chip tier-' + nt.id + '">' + nt.name + '</span><div class="post-ep">' + fmtN(sc.total) + ' EP · ' + esc(pname(c.pl)) + '</div></div></div>' +
+        '<div class="row-end"><div class="post-pills">' + top.map(fpill).join('') + (more > 0 ? '<span class="more">+' + more + ' more</span>' : '') + '</div>' + heartBtn(key, counts) + '</div></article>';
+      var sub = '';
+      if (c.fresh.length) {
+        var f3 = c.fresh.slice(0, 3), fm = c.fresh.length - f3.length;
+        sub += '<div class="subcard"><h4>Earned ' + c.fresh.length + ' new badge' + (c.fresh.length === 1 ? '' : 's') + '</h4><div class="items">' +
+          f3.map(function (b) { return fpill(b) + heartBtn(key + '|' + b.id, counts); }).join('') + (fm > 0 ? '<span class="more">+' + fm + ' more</span>' : '') + '</div></div>';
+      }
+      if (c.milestone) sub += '<div class="subcard gold row-end"><h4>🏆 Reached ' + c.milestone + ' unique badges collected</h4>' + heartBtn(key + '|m' + c.milestone, counts) + '</div>';
+      return h + (sub ? '<div class="thread">' + sub + '</div>' : '');
+    }).join('');
+  }
+  $('#feedList').addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-like]'); if (!b || !dbh || !myId) return;
+    var key = b.getAttribute('data-like'), i = myLikes.indexOf(key), next = i >= 0 ? myLikes.filter(function (k) { return k !== key; }) : myLikes.concat([key]).slice(-400);
+    myLikes = next; renderFeed();
+    (async function () {
+      try { var ref = dbh.doc('scores/' + myId), snap = await ref.get(); if (snap.exists) await ref.update({ likes: next }); else await ref.set({ likes: next }); } catch (e) {}
+    })();
+  });
+  setInterval(function () { if ($('#p-feed').classList.contains('on')) renderFeed(); }, 60000);
+
+
+
+  /* ---------- Compare: your result, ready to send ---------- */
+  function copyText(text, btn, area, doneLabel) {
+    var label = btn.textContent;
+    function fallback() { area.focus(); area.select(); btn.textContent = 'Press Ctrl+C'; setTimeout(function () { btn.textContent = label; }, 2200); }
+    try { navigator.clipboard.writeText(text).then(function () { btn.textContent = doneLabel || 'Copied'; setTimeout(function () { btn.textContent = label; }, 1800); }, fallback); } catch (e) { fallback(); }
+  }
+  function renderMine() {
+    var el = $('#mineCard'), d = state.days[todayStr()];
+    if (!d) {
+      el.innerHTML = '<h2>Compare with friends</h2><p class="muted small">Roll today first, then send your result to friends and paste theirs below to see who rolled best. It works without signing in.</p><div class="row"><button class="btn" id="mineGo" type="button">Go roll</button></div>';
+      $('#mineGo').addEventListener('click', function () { $('#t-today').click(); });
+      return;
+    }
+    var text = shareText(d.fc, todayStr(), scoreView(d.fc, d.p), d.p), canShare = !!navigator.share;
+    el.innerHTML = '<h2>Your result</h2><ol class="steps"><li>Copy your result and send it to a friend.</li><li>Paste their result in the box below.</li><li>Tap Rank them.</li></ol>' +
+      '<textarea id="mineText" readonly rows="7" aria-label="Your result"></textarea>' +
+      '<div class="row"><button class="btn" id="mineCopy" type="button">Copy my result</button>' + (canShare ? '<button class="btn" id="mineShare" type="button">Share</button>' : '') + '</div>';
+    $('#mineText').value = text;
+    $('#mineCopy').addEventListener('click', function () { copyText(text, this, $('#mineText')); });
+    if (canShare) $('#mineShare').addEventListener('click', function () { try { navigator.share({ text: text }).catch(function () {}); } catch (e) {} });
+  }
+
+
+  /* ---------- save code: back up and restore ---------- */
+  var SAVE_PREFIX = 'FCDLE1:';
+  function makeSaveCode() {
+    var d = Object.keys(state.days).sort().map(function (k) { var x = state.days[k]; return [k, x.fc, x.seed && x.seed !== state.seed ? x.seed : '', x.t || 0]; });
+    var obj = { v: 1, s: state.seed, n: state.name && !isReserved(state.name) ? state.name : '', d: d };
+    return SAVE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  }
+  function renderBackup() { $('#saveOut').value = Object.keys(state.days).length ? makeSaveCode() : ''; $('#saveOut').placeholder = 'Roll once and your save code appears here.'; }
+  function saveMsg(text, bad) { var m = $('#saveMsg'); m.textContent = text; m.className = 'msg' + (bad ? ' err' : ''); }
+  async function restoreSave() {
+    var raw = ($('#saveIn').value || '').replace(/\s+/g, ''), obj;
+    if (!raw) { saveMsg('Paste a save code first.', true); return; }
+    try {
+      if (raw.indexOf(SAVE_PREFIX) !== 0) throw 0;
+      obj = JSON.parse(decodeURIComponent(escape(atob(raw.slice(SAVE_PREFIX.length)))));
+      if (!obj || obj.v !== 1 || !Array.isArray(obj.d) || obj.d.length > 1000 || typeof obj.s !== 'string' || obj.s.length > 80) throw 0;
+    } catch (e) { saveMsg('That doesn’t look like a valid save code.', true); return; }
+    var today = todayStr(), cands = [];
+    obj.d.forEach(function (x) {
+      if (!Array.isArray(x)) return;
+      var date = x[0], fc = x[1], seed = x[2] || obj.s, tm = x[3];
+      if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today || Date.parse(date + 'T00:00:00Z') < EPOCH) return;
+      if (typeof fc !== 'string' || !FC.parse(fc).ok || typeof seed !== 'string' || seed.length > 80) return;
+      cands.push({ date: date, fc: fc, seed: seed, t: typeof tm === 'number' ? tm : 0 });
+    });
+    saveMsg('Checking your rolls...');
+    var okc = await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; return pl.f === c.fc; }, function () { return false; }); }));
+    var fresh = !Object.keys(state.days).length, added = 0, had = 0, bad = obj.d.length - okc.filter(Boolean).length;
+    cands.forEach(function (c, i) {
+      if (!okc[i]) return;
+      if (state.days[c.date]) { had++; return; }
+      state.days[c.date] = { fc: c.fc, seed: c.seed, p: slim(c.pl), t: c.t || 0 }; added++;
+    });
+    if (fresh && added && obj.s) state.seed = obj.s;
+    var nm = cleanName(obj.n); if (!state.name && nm && !isReserved(nm)) state.name = nm;
+    save(); renderName(); renderToday(); renderStatsTab(); renderBackup();
+    saveMsg('Restored ' + added + (added === 1 ? ' day' : ' days') + (had ? ', ' + had + ' already here' : '') + (bad ? ', ' + bad + ' couldn’t be verified and were skipped' : '') + '.', !added && !had);
+    if (added) $('#saveIn').value = '';
+  }
+  $('#saveRestore').addEventListener('click', restoreSave);
+  $('#saveCopy').addEventListener('click', function () { var a = $('#saveOut'); if (!a.value) { saveMsg('Nothing to back up yet. Roll first.', true); return; } copyText(a.value, this, a, 'Copied'); });
+
+  /* ---------- Stats tab ---------- */
+  var TIER_ORDER = ['mythic', 'anomaly', 'epic', 'rare', 'uncommon', 'common', 'trash'];
+  var TIER_NAMES = { mythic: 'Mythic', anomaly: 'Anomaly', epic: 'Epic', rare: 'Rare', uncommon: 'Uncommon', common: 'Common', trash: 'Trash' };
+  function renderStatsTab() {
+    var el = $('#statsCard'), keys = Object.keys(state.days).sort();
+    if (!keys.length) { el.innerHTML = '<h2>Your stats</h2><p class="muted">Roll today and your stats start here: streaks, best roll, rarest badge and a history of every day.</p>'; return; }
+    var st = streaks(), total = 0, best = null, rarest = null, tiers = {}, btiers = {}, hist = [];
+    keys.forEach(function (k) {
+      var d = state.days[k], v = scoreView(d.fc, d.p); total += v.sc.total;
+      tiers[v.nt.id] = (tiers[v.nt.id] || 0) + 1;
+      if (!best || v.sc.total > best.ep) best = { ep: v.sc.total, date: k, fc: d.fc, p: d.p, nt: v.nt };
+      v.sc.kept.forEach(function (b) {
+        btiers[b.id] = 1;
+        if (!b.special && (!rarest || b.p < rarest.b.p)) rarest = { b: b, date: k };
+      });
+      hist.push({ date: k, fc: d.fc, p: d.p, ep: v.sc.total, nt: v.nt });
+    });
+    var played = keys.length, avg = Math.round(total / played), have = Object.keys(btiers).length;
+    var h = '<h2>Your stats</h2><div class="kpis">' + [
+      [st.cur + ' 🔥', 'Current streak'], [st.best, 'Best streak'], [played, 'Days played'],
+      [fmtN(total), 'Total EP'], [fmtN(avg), 'Average per day'], [have + '/' + FC.BADGES.length, 'Badges found']
+    ].map(function (x) { var s = String(x[0]); return '<div class="kpi"><b' + (s.length >= 10 ? ' style="font-size:17px"' : '') + '>' + s + '</b><span>' + x[1] + '</span></div>'; }).join('') + '</div>';
+    var ga = earnedAchievements(), na = Object.keys(ga).length;
+    h += '<h3 class="sub">Achievements</h3><p>' + (na ? ACHIEVEMENTS.filter(function (a) { return ga[a.id]; }).map(function (a) { return a.icon + ' <b>' + esc(a.name) + '</b>'; }).join(' · ') : '<span class="muted">None yet.</span>') + ' <span class="muted">' + na + '/' + ACHIEVEMENTS.length + '</span></p>';
+    h += '<h3 class="sub">Best roll</h3><p><span class="chip tier-' + best.nt.id + '">' + best.nt.name + '</span> <b>' + fmtN(best.ep) + ' EP</b> · ' + pretty(best.fc) + (best.p ? ' · ' + esc(pname(best.p)) : '') + ' · <span class="muted">Day ' + dayNo(best.date) + '</span></p>';
+    if (rarest) h += '<h3 class="sub">Rarest badge</h3><p><span class="chip tier-' + rarest.b.tier + '">' + rarest.b.tierName + '</span> <b>' + esc(rarest.b.name) + '</b> · ' + oddsText(rarest.b) + ' · <span class="muted">Day ' + dayNo(rarest.date) + '</span></p>';
+    h += '<h3 class="sub">Rolls by rarity</h3><div class="bars">' + TIER_ORDER.map(function (id) {
+      var n = tiers[id] || 0; return '<div class="bar-row tier-' + id + '"><span>' + TIER_NAMES[id] + '</span><div class="trk"><i style="width:' + (n / played * 100).toFixed(1) + '%"></i></div><em>' + n + '</em></div>';
+    }).join('') + '</div>';
+    h += '<h3 class="sub">Badge progress by rarity</h3><div class="bars">' + FC.BADGE_TIERS.map(function (bt) {
+      var all = FC.BADGES.filter(function (b) { return !b.special && FC.badgeTier(DATA.probs[b.id] || 0).id === bt.id; }), got = all.filter(function (b) { return btiers[b.id]; }).length;
+      if (!all.length) return '';
+      return '<div class="bar-row tier-' + bt.id + '"><span>' + bt.name + '</span><div class="trk"><i style="width:' + (got / all.length * 100).toFixed(1) + '%"></i></div><em>' + got + '/' + all.length + '</em></div>';
+    }).join('') + '</div>';
+    h += '<h3 class="sub">Recent rolls</h3><ol class="hist" reversed>' + hist.slice(-14).reverse().map(function (x) {
+      return '<li><span>' + (TIER_SQUARE[x.nt.id] || '') + '</span><div>' + (x.p ? esc(pname(x.p)) : pretty(x.fc)) + '<small>Day ' + dayNo(x.date) + ' · ' + pretty(x.fc) + '</small></div><b>' + fmtN(x.ep) + ' EP</b></li>';
+    }).join('') + '</ol>';
+    el.innerHTML = h;
+  }
+
+  /* ---------- Hall of fame ---------- */
+  var hofToken = 0;
+  async function renderHof() {
+    if (!SHOW_BOARD) return;
+    var el = $('#hofCard'), tok = ++hofToken;
+    if (!dbh || !myId || rows === null) { el.hidden = true; return; }
+    var vr; try { vr = await verifiedRolls(); } catch (e) { vr = []; }
+    if (tok !== hofToken) return;
+    if (!vr.length) { el.hidden = true; return; }
+    var scored = vr.map(function (c) { var v = scoreView(c.s, c.pl); return { c: c, v: v, ep: v.sc.total }; });
+    var bestDays = scored.slice().sort(function (a, b) { return b.ep - a.ep; }).slice(0, 5);
+    var hits = [];
+    scored.forEach(function (x) {
+      var r = null; x.v.sc.kept.forEach(function (b) { if (!b.special && (!r || b.p < r.p)) r = b; });
+      if (r) hits.push({ x: x, b: r });
+    });
+    hits.sort(function (a, b) { return a.b.p - b.b.p; }); hits = hits.slice(0, 5);
+    var byId = {}; vr.forEach(function (c) { (byId[c.id] = byId[c.id] || []).push(c.date); });
+    var streakList = Object.keys(byId).map(function (id) { return { id: id, n: bestRun(byId[id]) }; }).filter(function (s) { return s.n >= 2; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 5);
+    var ids = {}; bestDays.forEach(function (x) { ids[x.c.id] = 1; }); hits.forEach(function (x) { ids[x.x.c.id] = 1; }); streakList.forEach(function (s) { ids[s.id] = 1; });
+    var names = {}; try { if (userh && userh.profiles) names = await userh.profiles(Object.keys(ids)) || {}; } catch (e) {}
+    if (tok !== hofToken) return;
+    var nm = function (id) { return esc((names[id] && names[id].name) || (id === myId ? 'You' : 'Player')); };
+    var h = '<h2>Hall of fame</h2><h3>Biggest single days</h3><ol class="hist">' + bestDays.map(function (x) {
+      return '<li><span>' + (TIER_SQUARE[x.v.nt.id] || '') + '</span><div>' + nm(x.c.id) + '<small>' + esc(pname(x.c.pl)) + ' · Day ' + dayNo(x.c.date) + '</small></div><b>' + fmtN(x.ep) + ' EP</b></li>';
+    }).join('') + '</ol><h3>Rarest badges hit</h3><ol class="hist">' + hits.map(function (y) {
+      return '<li><span>' + (TIER_SQUARE[y.b.tier] || '') + '</span><div>' + nm(y.x.c.id) + '<small>' + esc(y.b.name) + ' · Day ' + dayNo(y.x.c.date) + '</small></div><b>' + oddsText(y.b) + '</b></li>';
+    }).join('') + '</ol>';
+    if (streakList.length) h += '<h3>Longest streaks</h3><ol class="hist">' + streakList.map(function (s) {
+      return '<li><span>🔥</span><div>' + nm(s.id) + '</div><b>' + s.n + ' days</b></li>';
+    }).join('') + '</ol>';
+    el.innerHTML = h; el.hidden = false;
+  }
+
+  /* ---------- tabs ---------- */
+  function showTab(name) {
+    if (TABS.indexOf(name) < 0) name = 'today';
+    TABS.forEach(function (t) {
+      var on = t === name;
+      $('#p-' + t).classList.toggle('on', on);
+      $('#t-' + t).setAttribute('aria-selected', on ? 'true' : 'false');
+      $('#t-' + t).tabIndex = on ? 0 : -1;
+    });
+    if (name === 'collection') renderCollection();
+    if (name === 'stats') { renderStatsTab(); renderBackup(); }
+    if (name === 'compare') renderMine();
+  }
+  document.querySelectorAll('nav [data-tab]').forEach(function (b) {
+    b.addEventListener('click', function () { var n = b.getAttribute('data-tab'); try { history.replaceState(null, '', '#' + n); } catch (e) { try { location.hash = n; } catch (e2) {} } showTab(n); });
+    b.addEventListener('keydown', function (ev) {
+      var i = TABS.indexOf(b.getAttribute('data-tab')), j = ev.key === 'ArrowRight' ? i + 1 : ev.key === 'ArrowLeft' ? i - 1 : -1;
+      if (j < 0) return; j = (j + TABS.length) % TABS.length; $('#t-' + TABS[j]).focus(); $('#t-' + TABS[j]).click();
+    });
+  });
+  window.addEventListener('hashchange', function () { showTab(location.hash.slice(1)); });
+
+  /* ---------- clock ---------- */
+  function tick() {
+    var now = new Date(), next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1), s = Math.max(0, Math.floor((next - now.getTime()) / 1000));
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    $('#countdown').textContent = p(Math.floor(s / 3600)) + ':' + p(Math.floor(s % 3600 / 60)) + ':' + p(s % 60);
+    if (todayStr() !== shownDate && !spinning) renderToday();
+  }
+
+  /* ---------- start ---------- */
+  renderName(); renderToday(); renderRules();
+  $('#fcInput').value = pretty(EXAMPLE);
+  showCheck(EXAMPLE, 'Example code. Type any friend code above to replace it.');
+  showTab(location.hash.slice(1));
+  tick(); setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

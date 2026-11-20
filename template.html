@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FCdle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: near-black stage, slim top bar, one huge centered code, glowing gradient-edged roll button, tinted pill badges. */
+:root {
+  --bg: #0a0a0a;
+  --surface: #141417;
+  --surface2: #1b1b20;
+  --ink: #fafafa;
+  --muted: #9a9a9a;
+  --line: #26262c;
+  --bar: #1a1820;
+  --accent: #d44dba;
+  --grad: linear-gradient(100deg, #f46444, #d44dba);
+  --t-trash: #77777f; --t-common: #b4b4bb; --t-uncommon: #4ade80; --t-rare: #60a5fa;
+  --t-epic: #c084fc; --t-anomaly: #fb923c; --t-mythic: #fb7185;
+  --body: "Inter", "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; }
+p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; padding: 6px 20px; min-height: 52px; background: var(--bar); background: oklch(0.178 0.014 295); }
+.logo { font-size: 18px; font-weight: 700; color: #f0f0f0; text-decoration: none; letter-spacing: -0.01em; }
+.bar nav { display: flex; gap: 2px; margin-left: auto; overflow-x: auto; }
+.bar nav button { background: none; border: 0; cursor: pointer; padding: 10px 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; position: relative; }
+.bar nav button:hover { color: var(--ink); }
+.bar nav button[aria-selected="true"] { color: var(--ink); }
+.bar nav button[aria-selected="true"]::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--grad); }
+.clock { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; white-space: nowrap; }
+.clock strong { color: var(--ink); font-weight: 600; margin-left: 6px; }
+
+.shell { max-width: 900px; margin: 0 auto; padding: 56px 16px 56px; display: flex; flex-direction: column; gap: 28px; }
+.panel { display: none; flex-direction: column; gap: 28px; }
+.panel.on { display: flex; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.card h2, .label { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.card h2 { margin-bottom: 14px; }
+.sub { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+.hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; width: 100%; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.hero-digits { font-weight: 700; font-size: clamp(28px, 8.2vw, 72px); line-height: 1; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; white-space: nowrap;
+  background: linear-gradient(90deg, #bebebe 0%, #bebebe 40%, #e6e6e6 50%, #bebebe 60%, #bebebe 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-digits.final { background: none; color: var(--ink); }
+.hero-digits i { font-style: normal; opacity: 0.4; padding: 0 0.06em; }
+.tag { color: var(--muted); font-size: 18px; }
+.gen { font-family: var(--body); font-weight: 900; font-size: 28px; line-height: 1; letter-spacing: 3px; text-transform: uppercase; color: #fff; cursor: pointer;
+  padding: 18px 32px; width: min(320px, 100%); border: 2px solid transparent; border-radius: 8px;
+  background: linear-gradient(#0a0a0a, #0a0a0a) padding-box, var(--grad) border-box;
+  box-shadow: 0 0 14px rgba(244, 100, 68, 0.32), 0 0 36px rgba(212, 77, 186, 0.15); transition: box-shadow 0.2s; }
+.gen:hover:not(:disabled) { box-shadow: 0 0 18px rgba(244, 100, 68, 0.5), 0 0 48px rgba(212, 77, 186, 0.28); }
+.gen:disabled { opacity: 0.6; cursor: default; }
+.note { color: var(--muted); font-size: 13px; }
+.statline { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 26px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
+.statline b { color: var(--ink); font-size: 15px; font-weight: 700; margin-right: 6px; letter-spacing: 0; }
+
+.mii { width: 112px; height: 112px; border-radius: 20px; border: 2px solid var(--line); background: linear-gradient(145deg, #26262d, #141417); object-fit: contain; box-shadow: 0 0 28px rgba(212, 77, 186, 0.18); }
+.mii.ph { display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 700; color: #bebebe; }
+.mii.ph svg { width: 56px; height: 56px; }
+.who { display: flex; flex-direction: column; gap: 2px; }
+.who strong { font-size: 18px; font-weight: 700; }
+.who span { color: var(--muted); font-size: 13px; }
+.av { width: 28px; height: 28px; border-radius: 8px; vertical-align: middle; margin-right: 8px; background: var(--surface2); }
+.btn { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
+
+.result { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
+.tile-ep { min-width: 128px; height: 128px; padding: 0 20px; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 2px solid color-mix(in srgb, var(--c) 75%, transparent); background: linear-gradient(145deg, color-mix(in srgb, var(--c) 30%, var(--surface)), var(--surface) 90%);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--c) 28%, transparent); }
+.tile-ep { max-width: 100%; box-sizing: border-box; }
+.tile-ep.lg b { font-size: 40px; }
+.tile-ep.xl b { font-size: 31px; }
+.tile-ep b { font-size: 52px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile-ep small { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); margin-top: 4px; }
+.verdict { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 12px; font-size: 14px; color: var(--muted); }
+.chip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); }
+.tier-creator { --c: #ffc21a; }
+.hero-digits.final.gold { background: linear-gradient(90deg, #ffe58a, #ffb81c 50%, #ffe58a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tier-trash { --c: var(--t-trash); } .tier-common { --c: var(--t-common); } .tier-uncommon { --c: var(--t-uncommon); }
+.tier-rare { --c: var(--t-rare); } .tier-epic { --c: var(--t-epic); } .tier-anomaly { --c: var(--t-anomaly); } .tier-mythic { --c: var(--t-mythic); }
+.gauge { width: min(420px, 100%); }
+.meter { position: relative; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.meter .fill { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 999px; }
+.meter i { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--bg); }
+.ticks { position: relative; height: 18px; margin-top: 4px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ticks span { position: absolute; transform: translateX(-50%); }
+.pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 680px; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; padding: 4px 11px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 38%, transparent); }
+.pill em { font-style: normal; font-size: 11px; opacity: 0.75; font-variant-numeric: tabular-nums; }
+details.more { width: 100%; max-width: 680px; text-align: left; }
+details.more summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; text-align: center; padding: 6px; }
+ul.badges { list-style: none; margin: 10px 0 0; padding: 0; }
+ul.badges li { display: grid; grid-template-columns: 96px 1fr auto; gap: 4px 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+ul.badges li:first-child { border-top: 0; }
+.b-main strong { font-weight: 600; }
+.b-main span { display: block; color: var(--muted); font-size: 13px; }
+.b-side { text-align: right; font-variant-numeric: tabular-nums; }
+.b-side .ep { display: block; font-weight: 700; }
+.b-side .odds { color: var(--muted); font-size: 12px; }
+details.more ul.shadow { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+
+.field { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+.field input { flex: 1 1 260px; min-width: 0; box-sizing: border-box; max-width: min(420px, 100%); font-weight: 700; font-size: 24px; letter-spacing: 0.06em; text-align: center; font-variant-numeric: tabular-nums; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.field input::placeholder { color: #4a4a52; }
+.field input[aria-invalid="true"] { border-color: var(--t-anomaly); }
+.msg { min-height: 20px; font-size: 13px; color: var(--muted); text-align: center; }
+.msg.err { color: var(--t-anomaly); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface2); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.tile.locked { background: transparent; border-style: dashed; }
+.tile.locked strong { color: var(--muted); }
+.tile strong { font-weight: 600; }
+.tile small { color: var(--muted); }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line); font-size: 14px; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border-top: 0; }
+.tbl { overflow-x: auto; }
+.card p + p { margin-top: 8px; }
+ol.board { list-style: none; margin: 0; padding: 0; }
+ol.board li { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+ol.board li:first-child { border-top: 0; }
+ol.board .pos { font-weight: 800; color: var(--muted); }
+ol.board li.me { background: rgba(244, 100, 68, 0.09); margin: 0 -10px; padding-left: 10px; padding-right: 10px; border-radius: 8px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.card-head h2 { margin: 0; }
+.fbtn { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.fbtn:hover { color: var(--ink); border-color: #4a4a52; }
+.fbtn.on { color: var(--ink); background: var(--surface2); }
+.head-segs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.friendbox { margin: 4px 0 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); display: grid; gap: 10px; }
+.friendbox label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.friendbox .line { display: flex; gap: 8px; }
+.friendbox input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg, #0b0b0d); color: var(--ink); font-size: 13px; font-family: inherit; }
+.friendbox[hidden] { display: none; }
+.namebar { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+.namebar strong { color: var(--ink); }
+.namebar input { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; width: 170px; max-width: 100%; box-sizing: border-box; }
+.namebar [hidden] { display: none; }
+.cmp textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; resize: vertical; margin: 10px 0; }
+.cmp .row { display: flex; gap: 8px; margin-bottom: 8px; }
+.post { border: 1px solid color-mix(in srgb, var(--c) 32%, var(--line)); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 14%, #141418), #141418 70%); }
+.post-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.post-name { font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c); font-size: 15px; overflow-wrap: anywhere; }
+.post-time { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.post-mid { display: flex; align-items: center; gap: 14px; margin: 10px 0 12px; flex-wrap: wrap; }
+.post-digits { font-weight: 800; font-size: 22px; letter-spacing: 0.06em; padding: 10px 14px; border-radius: 10px; color: var(--c); border: 2px solid color-mix(in srgb, var(--c) 70%, transparent); background: color-mix(in srgb, var(--c) 12%, #1a1a20); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.post-meta .chip { display: inline-block; margin-bottom: 4px; }
+.post-ep { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.post-pills { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fpill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+.more { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.row-end { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.heart { background: none; border: 0; cursor: pointer; color: var(--muted); font-size: 15px; padding: 2px 4px; line-height: 1; font-variant-numeric: tabular-nums; }
+.heart:hover { color: var(--ink); } .heart.on { color: #fb7185; }
+.heart small { font-size: 11px; margin-left: 3px; }
+.thread { margin: -4px 0 12px 22px; padding-left: 18px; border-left: 1px solid var(--line); display: grid; gap: 10px; padding-top: 12px; }
+.subcard { background: var(--surface2); border-radius: 10px; padding: 10px 14px; }
+.subcard h4 { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); }
+.subcard.gold { background: rgba(255, 194, 26, 0.1); }
+.subcard.gold h4 { color: #ffc21a; margin: 0; }
+.subcard .items { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+ol.board li.idle { opacity: 0.55; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: none; border: 0; padding: 6px 14px; cursor: pointer; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface2); color: var(--ink); }
+textarea.share { width: 100%; max-width: 420px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 8px; }
+footer { color: #6b6b73; font-size: 12px; text-align: center; max-width: 60ch; margin: 0 auto; }
+@media (max-width: 560px) {
+  .bar { padding: 6px 12px; }
+  .bar nav { order: 3; width: 100%; margin-left: -12px; }
+  .clock { margin-left: auto; }
+  .shell { padding-top: 36px; }
+  .tag { font-size: 16px; }
+  .gen { font-size: 24px; }
+  ul.badges li { grid-template-columns: 1fr auto; }
+  ul.badges li .chip { justify-self: start; grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+.streakbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:4px 12px; padding:10px 16px; border:1px solid var(--line); border-radius:999px; background:var(--surface); font-size:14px; }
+.streakbar b { font-size:18px; }
+.streakbar.hot { border-color: color-mix(in srgb, #f46444 55%, transparent); background: color-mix(in srgb, #f46444 9%, var(--surface)); }
+.streakbar .dim { color: var(--muted); font-size:13px; }
+.pct { font-size:14px; color:var(--muted); margin:0; text-align:center; }
+.pct b { color:var(--ink); }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+.kpi { border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--surface2); display:flex; flex-direction:column; gap:2px; }
+.kpi b { font-size:22px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.kpi span { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+.bars { display:flex; flex-direction:column; gap:8px; }
+.bar-row { display:grid; grid-template-columns:96px 1fr 44px; gap:10px; align-items:center; font-size:13px; }
+.bar-row .trk { height:10px; border-radius:6px; background:var(--surface2); overflow:hidden; }
+.bar-row .trk i { display:block; height:100%; background:var(--c, #bebebe); border-radius:6px; min-width:0; }
+.bar-row em { font-style:normal; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+.hist { list-style:none; margin:0; padding:0; }
+.hist li { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+.hist li:first-child { border-top:0; }
+.hist small { color:var(--muted); display:block; }
+.hist b { font-variant-numeric:tabular-nums; }
+.hof { margin-top:16px; }
+.hof h3 { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:18px 0 6px; }
+.hof h3:first-of-type { margin-top:4px; }
+
+.ach-banner { display:none; text-align:center; padding:10px 16px; border:1px solid color-mix(in srgb, #f4c430 55%, transparent); border-radius:12px; background:color-mix(in srgb, #f4c430 10%, var(--surface)); font-size:14px; }
+.ach-banner.on { display:block; }
+.tile.ach { border-color: color-mix(in srgb, #f4c430 45%, transparent); }
+.tile.ach.locked { border-color: var(--line); }
+.mine { display:flex; flex-direction:column; gap:10px; }
+.mine textarea { min-height:140px; }
+.mine .row { display:flex; flex-wrap:wrap; gap:8px; }
+.steps { margin:0; padding-left:18px; color:var(--muted); font-size:13px; display:flex; flex-direction:column; gap:2px; }
+
+.howto { text-align:left; max-width:460px; margin:4px auto 0; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--surface); font-size:14px; color:var(--muted); }
+.howto strong { color:var(--ink); display:block; margin-bottom:6px; }
+.howto ol { margin:0; padding-left:18px; display:flex; flex-direction:column; gap:4px; }
+
+.opts { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 18px; font-size:13px; color:var(--muted); }
+.opts label { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+.result.fx { animation: fxglow 2.4s ease-out 1; }
+@keyframes fxglow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 0%, transparent); } 25% { box-shadow: 0 0 46px 6px color-mix(in srgb, var(--c) 55%, transparent); } 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 0%, transparent); } }
+.backup textarea { width:100%; box-sizing:border-box; }
+.backup .row { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="#today">FCdle</a>
+  <nav role="tablist" aria-label="Sections">
+    <button role="tab" id="t-today" data-tab="today" aria-selected="true" aria-controls="p-today">Today</button>
+    <button role="tab" id="t-check" data-tab="check" aria-selected="false" aria-controls="p-check">Score a code</button>
+    <button role="tab" id="t-collection" data-tab="collection" aria-selected="false" aria-controls="p-collection">Badges</button>
+    <button role="tab" id="t-stats" data-tab="stats" aria-selected="false" aria-controls="p-stats">Stats</button>
+    <button role="tab" id="t-compare" data-tab="compare" aria-selected="false" aria-controls="p-compare">Compare</button>
+    <button role="tab" id="t-rules" data-tab="rules" aria-selected="false" aria-controls="p-rules">Rules</button>
+  </nav>
+  <div class="clock" title="Time until the next roll (UTC)"><span id="dayLabel">#1</span><strong id="countdown">--:--:--</strong></div>
+</header>
+<div class="shell">
+  <main>
+    <section class="panel on" id="p-today" role="tabpanel" aria-labelledby="t-today">
+      <div class="namebar" id="nameBar">
+        <span id="nameShow"></span>
+        <button class="fbtn" id="nameEdit" type="button">Choose a name</button>
+        <span id="nameForm" hidden><input id="nameInput" maxlength="20" autocomplete="off" spellcheck="false" aria-label="Your name" placeholder="Your name"> <input id="namePw" type="password" autocomplete="off" aria-label="Password for this name" placeholder="Password" hidden> <button class="fbtn on" id="nameSave" type="button">Save</button></span>
+        <span class="msg" id="nameMsg" role="status" aria-live="polite" style="flex-basis:100%;text-align:center;margin:0"></span>
+      </div>
+      <div class="streakbar" id="streakBar"></div>
+      <div class="ach-banner" id="achBanner" role="status" aria-live="polite"></div>
+      <div class="hero" id="todayCard"></div>
+      <div class="statline" id="stats"></div>
+    </section>
+
+    <section class="panel" id="p-check" role="tabpanel" aria-labelledby="t-check">
+      <div class="hero">
+        <p class="tag">Type or paste any 12-digit Mario Kart Wii friend code.</p>
+        <div class="field">
+          <input id="fcInput" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="14" aria-label="Friend code" aria-describedby="fcMsg" placeholder="0000-0000-0000">
+        </div>
+        <p class="msg" id="fcMsg" role="status" aria-live="polite"></p>
+      </div>
+      <div class="hero" id="checkCard"></div>
+    </section>
+
+    <section class="panel" id="p-collection" role="tabpanel" aria-labelledby="t-collection">
+      <div class="card">
+        <h2>Badge collection</h2>
+        <h3 class="sub" style="margin-top:0">Achievements</h3>
+        <p class="muted small" id="achSummary" style="margin-bottom:10px"></p>
+        <div class="grid" id="achGrid"></div>
+        <h3 class="sub">Badges</h3>
+        <p class="muted small" id="collSummary" style="margin-bottom:14px"></p>
+        <div class="grid" id="collGrid"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-stats" role="tabpanel" aria-labelledby="t-stats">
+      <div class="card" id="statsCard"></div>
+      <div class="card backup" id="backupCard">
+        <h2>Back up your progress</h2>
+        <p class="muted small">Your rolls, streak and name are saved only in this browser, so clearing browser data or switching device loses them. Copy your save code somewhere safe, then paste it into Restore on the new device.</p>
+        <textarea id="saveOut" readonly rows="3" aria-label="Your save code"></textarea>
+        <div class="row"><button class="btn" id="saveCopy" type="button">Copy save code</button></div>
+        <textarea id="saveIn" rows="3" placeholder="Paste a save code here to restore it" aria-label="Save code to restore" spellcheck="false"></textarea>
+        <div class="row"><button class="btn" id="saveRestore" type="button">Restore</button></div>
+        <p class="msg" id="saveMsg" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="p-feed" role="tabpanel" aria-labelledby="t-feed">
+      <div class="card">
+        <div class="card-head"><h2>Feed</h2></div>
+        <p class="msg" id="feedMsg" role="status" aria-live="polite"></p>
+        <div id="feedList"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-compare" role="tabpanel" aria-labelledby="t-compare">
+      <div class="card mine" id="mineCard"></div>
+      <div class="card" id="boardCard" hidden>
+        <div class="card-head">
+          <h2>Leaderboard</h2>
+          <div class="head-segs">
+            <div class="seg" role="group" aria-label="Who to show">
+              <button type="button" id="fEveryone" aria-pressed="true">Everyone</button>
+              <button type="button" id="fFriends" aria-pressed="false">Friends</button>
+            </div>
+            <div class="seg" role="group" aria-label="Leaderboard range">
+              <button type="button" id="bToday" aria-pressed="true">Today</button>
+              <button type="button" id="bAll" aria-pressed="false">All time</button>
+            </div>
+          </div>
+        </div>
+        <div class="friendbox" id="friendBox" hidden>
+          <div><label for="myIdField">Your player ID</label><div class="line"><input id="myIdField" readonly><button class="btn" id="copyId" type="button">Copy</button></div></div>
+          <div><label for="addIdField">Add a friend by player ID</label><div class="line"><input id="addIdField" autocomplete="off" spellcheck="false" placeholder="Paste a friend's player ID"><button class="btn" id="addFriend" type="button">Add</button></div></div>
+          <p class="msg" id="friendMsg" role="status" aria-live="polite" style="margin:0"></p>
+        </div>
+        <p class="msg" id="boardMsg" role="status" aria-live="polite"></p>
+        <ol class="board" id="boardList"></ol>
+      </div>
+      <div class="card hof" id="hofCard" hidden></div>
+      <div class="card cmp" id="compareCard" style="margin-top:16px">
+        <div class="card-head"><h2>Compare with friends</h2></div>
+        <p class="muted small">No sign-in needed. Paste the results your friends send you, then rank them against yours. Scores are worked out again from each friend code, so the EP in a pasted message doesn’t count.</p>
+        <textarea id="cmpIn" rows="6" placeholder="Paste results here" aria-label="Pasted results"></textarea>
+        <div class="row"><button class="btn" id="cmpGo" type="button">Rank them</button><button class="btn" id="cmpClear" type="button">Clear</button></div>
+        <p class="msg" id="cmpMsg" role="status" aria-live="polite"></p>
+        <ol class="board" id="cmpList"></ol>
+      </div>
+    </section>
+
+    <section class="panel" id="p-rules" role="tabpanel" aria-labelledby="t-rules">
+      <div class="card" id="rulesCard"></div>
+    </section>
+  </main>
+
+  <footer>Unofficial fan project inspired by RNGdle, not affiliated with RNGdle, Retro Rewind (RWFC) or Nintendo. Racer names, friend codes and Miis come from the public RWFC VR leaderboard (a snapshot from November 20, 2026; Miis for 200 top racers only). Badges, EP values and odds are this game's own.</footer>
+</div>
+
+<script>
+/*__CORE__*/
+</script>
+<script>
+const DATA = /*__DATA__*/;
+const POOL = /*__POOL__*/;
+</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var EPOCH = Date.UTC(2026, 10, 20);
+  var TABS = ['today', 'check', 'collection', 'stats', 'compare', 'rules'];
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- helpers ---------- */
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function dayNo(d) { return Math.round((Date.parse(d + 'T00:00:00Z') - EPOCH) / 864e5) + 1; }
+  function prevDay(d) { return new Date(Date.parse(d + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10); }
+  function pretty(s) { return s.slice(0, 4) + '-' + s.slice(4, 8) + '-' + s.slice(8); }
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function fmtN(n) { return Number(n).toLocaleString('en-US'); }
+  function oneIn(p) { return p > 0 ? '1 in ' + fmtN(Math.round(1 / p)) : 'rarer than 1 in ' + fmtN(DATA.N); }
+  function topPct(r) {
+    var t = (1 - r.mid) * 100;
+    if (t < 0.1) return '0.1%';
+    if (t < 10) return t.toFixed(1) + '%';
+    return Math.round(t) + '%';
+  }
+  function randomId() {
+    var a = new Uint32Array(4);
+    try { crypto.getRandomValues(a); } catch (e) { for (var i = 0; i < 4; i++) a[i] = Math.floor(Math.random() * 4294967296); }
+    return Array.prototype.map.call(a, function (x) { return x.toString(16).padStart(8, '0'); }).join('');
+  }
+  function xmur3(str) {
+    var h = 1779033703 ^ str.length;
+    for (var i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+    h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+  var cum = [], poolTotal = 0;
+  POOL.cs.forEach(function (c) { cum.push(poolTotal); poolTotal += c; });
+  var shardCache = {};
+  function loadShard(prefix) {
+    if (!shardCache[prefix]) {
+      shardCache[prefix] = fetch('fc/' + prefix + '.json').then(function (r) { if (!r.ok) throw new Error('shard ' + r.status); return r.json(); });
+      shardCache[prefix].catch(function () { delete shardCache[prefix]; });
+    }
+    return shardCache[prefix];
+  }
+  function toPlayer(row) { return { r: row[0], f: row[1], n: row[2], v: row[3] }; }
+  function slim(p) { return p ? { r: p.r, n: p.n, v: p.v, f: p.f } : null; }
+  var MIISET = {}; POOL.m.forEach(function (f) { MIISET[f] = 1; });
+  function pickIndex(seed, date) { return xmur3(seed + '|' + date) % POOL.n; }
+  function playerAt(i) {
+    var k = 0;
+    for (var j = 0; j < POOL.cs.length; j++) { if (i < cum[j] + POOL.cs[j]) { k = j; break; } }
+    return loadShard(POOL.ps[k]).then(function (rows) { return toPlayer(rows[i - cum[k]]); });
+  }
+  function rollFor(seed, date) { return playerAt(pickIndex(seed, date)); }
+  function lookupFC(s) {
+    if (POOL.ps.indexOf(s.slice(0, 2)) < 0) return Promise.resolve(null);
+    return loadShard(s.slice(0, 2)).then(function (rows) {
+      var lo = 0, hi = rows.length - 1;
+      while (lo <= hi) { var m = (lo + hi) >> 1, f = rows[m][1]; if (f === s) return toPlayer(rows[m]); if (f < s) lo = m + 1; else hi = m - 1; }
+      return null;
+    }).catch(function () { return null; });
+  }
+  function pname(p) { return (p.n || '').trim() || 'Unnamed racer'; }
+  var SIL = '<svg viewBox="0 0 64 64" fill="#55555d" aria-hidden="true"><circle cx="32" cy="22" r="11"/><path d="M10 58c0-13 9-21 22-21s22 8 22 21z"/></svg>';
+  function miiHTML(p) {
+    if (!p) return '<div class="mii ph" aria-hidden="true">?</div>';
+    if (p.f && MIISET[p.f]) return '<img class="mii" src="miis_fc/' + p.f + '.webp" width="112" height="112" alt="' + esc(pname(p)) + '’s Mii">';
+    return '<div class="mii ph" role="img" aria-label="No Mii saved for this racer">' + SIL + '</div>';
+  }
+  function whoHTML(p) {
+    return p ? '<div class="who"><strong>' + esc(pname(p)) + '</strong><span>#' + fmtN(p.r) + ' on the VR leaderboard · ' + fmtN(p.v) + ' VR</span></div>' : '';
+  }
+  var SOLO = {}; (DATA.solo || []).forEach(function (id) { SOLO[id] = 1; });   // badges only one racer in the list can score
+  function oddsText(b) { return b.special || SOLO[b.id] ? 'one of a kind' : oneIn(b.p); }
+  function markGold(root, v) {
+    if (v.sc.kept.some(function (b) { return b.tier === 'creator'; })) { var el = root.querySelector('.hero-digits'); if (el) el.classList.add('gold'); }
+  }
+
+  /* ---------- local state ---------- */
+  var mem = null;
+  function load() {
+    try { var r = localStorage.getItem('fcdle.v2'); if (r) { var o = JSON.parse(r); if (o && o.days) return o; } } catch (e) {}
+    return mem || { seed: null, days: {} };
+  }
+  function save() { mem = state; try { localStorage.setItem('fcdle.v2', JSON.stringify(state)); } catch (e) {} }
+  var state = load();
+  if (!state.seed) { state.seed = randomId(); save(); }
+
+  /* ---------- scoring views ---------- */
+  function racerCtx(pl) { return pl ? { r: pl.r, v: pl.v, mii: !!MIISET[pl.f] } : undefined; }
+  function scoreView(s, pl) {
+    var sc = FC.score(s, DATA.probs, racerCtx(pl)), r = FC.rank(sc.total, DATA.cdf), nt = FC.numberTier(r);
+    return { sc: sc, r: r, nt: nt };
+  }
+  var FAM_EMOJI = { run: '\ud83d\udd01', seq: '\ud83d\udd22', pal: '\ud83e\ude9e', div: '\ud83d\udd1f', sparse: '\u26aa', loop: '\ud83d\udd02', bpal: '\ud83e\ude9e', bmatch: '\ud83d\udc6f', nice: '\ud83d\ude0e', blaze: '\ud83c\udf3f', beast: '\ud83d\udc79', jackpot: '\ud83c\udfb0', leet: '\ud83d\udc7e', over9000: '\ud83d\udca5', bond: '\ud83d\udd75\ufe0f', cc150: '\ud83c\udfce\ufe0f', wii: '\ud83c\udfae', superyear: '\ud83d\udcc5', pi: '\ud83e\udd67', fib: '\ud83d\udc1a', heavy: '\u2696\ufe0f', sumlow: '\u2b07\ufe0f', sumhigh: '\u2b06\ufe0f', parity: '\u262f\ufe0f', div3: '3\ufe0f\u20e3', div7: '\ud83c\udfb0', div11: '\ud83d\udd5a', round: '\u2b55', lead0: '0\ufe0f\u20e3', prime: '\ud83d\udc8e', square: '\u2b1b', cube: '\ud83e\uddca', order: '\ud83d\udcc8', digitparity: '\u2696\ufe0f', digitrange: '\ud83c\udf9a\ufe0f', creator: '\ud83d\udc51', sixseven: '\ud83e\udd37', rank: '\ud83c\udfc1', vr: '\ud83d\udcc8', vrexact: '\ud83c\udf31', mii: '\ud83d\ude42', answer42: '\ud83c\udf0c', calc: '\ud83e\uddee', lucky8: '\ud83e\udde7', nines: '9\ufe0f\u20e3', emergency: '\ud83d\udea8', jenny: '\ud83d\udcde', apollo: '\ud83c\udf15', odyssey: '\ud83d\udef8', binary: '\ud83d\udcbe', golden: '\ud83c\udf3b', euler: '\ud83d\udcd0', birthday: '\ud83c\udf82', drum808: '\ud83e\udd41', hometown: '\ud83c\udfe0' };
+  var TIER_SQUARE = { trash: '\ud83d\udfeb', common: '\u2b1c', uncommon: '\ud83d\udfe9', rare: '\ud83d\udfe6', epic: '\ud83d\udfea', anomaly: '\ud83d\udfe7', mythic: '\ud83d\udfe5', creator: '\ud83d\udfe8' };
+  var SHARE_URL = 'https://claude.ai/artifact/LVAmZPyxgxvTQJAbGx4Sj1';
+  function shareText(s, date, v, p) {
+    // kept badges by EP, each followed by the lower levels of its family it also earned (like RNGdle's "earned" lines)
+    var lines = [];
+    v.sc.kept.forEach(function (b) {
+      lines.push(b);
+      v.sc.shadowed.forEach(function (x) { if (x.by === b.name && x.family === b.family) lines.push(x); });
+    });
+    var show = lines.slice(0, 3).map(function (b) { return (TIER_SQUARE[b.tier] || '\u2b1c') + ' ' + (FAM_EMOJI[b.family] || '\ud83c\udfb2') + ' ' + b.name; });
+    var more = lines.length - show.length;
+    var out = 'FCdle \ud83c\udfb2 ' + pretty(s) + (state.name ? ' (' + state.name + ')' : '') + '\n\n' + (TIER_SQUARE[v.nt.id] || '') + ' ' + v.nt.name.toUpperCase() + ' \u2022 Top ' + topPct(v.r) + '\n\n' + show.join('\n');
+    if (more > 0) out += '\n+' + more + ' more';
+    var sk = date === todayStr() ? streaks().cur : 0;
+    return out + '\n\n' + fmtN(v.sc.total) + ' EP' + (sk >= 2 ? ' \u2022 \ud83d\udd25 ' + sk + '-day streak' : '') + '\n' + SHARE_URL;
+  }
+  function resultHTML(s, v) {
+    var sc = v.sc, nt = v.nt, ticks = [50, 75, 90, 95, 99], pct = v.r.mid * 100;
+    var h = '<div class="result tier-' + nt.id + '"><div class="tile-ep' + (fmtN(sc.total).length >= 12 ? ' xl' : fmtN(sc.total).length >= 8 ? ' lg' : '') + '"><b>' + fmtN(sc.total) + '</b><small>EP</small></div>' +
+      '<div class="verdict"><span class="chip tier-' + nt.id + '">' + nt.name + '</span><span>Better than ' + (pct >= 99.9 ? '99.9' : pct.toFixed(pct >= 90 ? 1 : 0)) + '% of friend codes</span></div>' +
+      '<div class="gauge"><div class="meter" role="img" aria-label="This code scores higher than ' + Math.round(pct) + ' percent of friend codes"><div class="fill" style="width:' + pct.toFixed(2) + '%"></div>';
+    ticks.forEach(function (t) { h += '<i style="left:' + t + '%"></i>'; });
+    h += '</div><div class="ticks" aria-hidden="true">';
+    ticks.forEach(function (t) { if (t !== 95) h += '<span style="left:' + t + '%">' + t + '</span>'; });
+    h += '</div></div><div class="pills">';
+    sc.kept.forEach(function (b) { h += '<span class="pill tier-' + b.tier + '" title="' + esc(b.tierName + ': ' + b.desc + ', ' + oddsText(b)) + '">' + esc(b.name) + '<em>+' + fmtN(b.ep) + '</em></span>'; });
+    h += '</div><details class="more"><summary>Badge details</summary><ul class="badges">';
+    sc.kept.forEach(function (b) {
+      h += '<li class="tier-' + b.tier + '"><span class="chip">' + b.tierName + '</span><div class="b-main"><strong>' + esc(b.name) + '</strong><span>' + esc(b.desc) + '</span></div><div class="b-side"><span class="ep">+' + b.ep + ' EP</span><span class="odds">' + oddsText(b) + '</span></div></li>';
+    });
+    h += '</ul>';
+    if (sc.shadowed.length) {
+      h += '<p class="sub">Matched but not scored</p><ul class="shadow">';
+      sc.shadowed.forEach(function (b) { h += '<li>' + esc(b.name) + ' (' + esc(b.desc) + ') is covered by ' + esc(b.by) + '</li>'; });
+      h += '</ul>';
+    }
+    return h + '</details></div>';
+  }
+  function plateHTML(s, label) {
+    var d = s ? [s.slice(0, 4), s.slice(4, 8), s.slice(8)] : ['????', '????', '????'];
+    return '<div class="eyebrow">' + esc(label || '') + '</div><div class="hero-digits' + (s ? ' final' : '') + '" id="digits">' + d[0] + '<i>-</i>' + d[1] + '<i>-</i>' + d[2] + '</div>';
+  }
+  function attachShare(root, text) {
+    var btn = root.querySelector('[data-share]');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var area = root.querySelector('[data-sharearea]');
+      function fallback() { area.hidden = false; area.value = text; area.focus(); area.select(); btn.textContent = 'Select and copy below'; }
+      try {
+        navigator.clipboard.writeText(text).then(function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy result'; }, 1800); }, fallback);
+      } catch (e) { fallback(); }
+    });
+  }
+
+  /* ---------- stats ---------- */
+  function bestRun(keys) {
+    keys = keys.slice().sort(); var best = 0, run = 0, prev = null;
+    keys.forEach(function (k) { run = prev && prevDay(k) === prev ? run + 1 : 1; if (run > best) best = run; prev = k; });
+    return best;
+  }
+  function streaks() {
+    var best = bestRun(Object.keys(state.days));
+    var t = todayStr(), cur = 0, d = state.days[t] ? t : prevDay(t);
+    while (state.days[d]) { cur++; d = prevDay(d); }
+    return { cur: cur, best: best, doneToday: !!state.days[t] };
+  }
+  var STREAK_GOALS = [3, 7, 14, 30, 50, 100, 200, 365];
+  function renderStreakBar() {
+    var st = streaks(), el = $('#streakBar'), next = null;
+    STREAK_GOALS.forEach(function (g) { if (next === null && g > st.cur) next = g; });
+    var h;
+    if (st.cur === 0) h = '<span>🔥 <b>0</b> day streak</span><span class="dim">Roll every day to build one.</span>';
+    else {
+      h = '<span>🔥 <b>' + st.cur + '</b>-day streak</span>';
+      if (!st.doneToday) h += '<span class="dim">Roll today to keep it going.</span>';
+      else if (next) h += '<span class="dim">' + (next - st.cur) + (next - st.cur === 1 ? ' more day' : ' more days') + ' to a ' + next + '-day streak.</span>';
+      else h += '<span class="dim">Legendary.</span>';
+      if (st.best > st.cur) h += '<span class="dim">Best: ' + st.best + '</span>';
+    }
+    el.className = 'streakbar' + (st.cur >= 2 ? ' hot' : ''); el.innerHTML = h;
+  }
+  function collected() {
+    var c = {}, total = 0, bestEP = 0;
+    Object.keys(state.days).forEach(function (k) {
+      var sc = FC.score(state.days[k].fc, DATA.probs, racerCtx(state.days[k].p));
+      total += sc.total; if (sc.total > bestEP) bestEP = sc.total;
+      sc.kept.forEach(function (b) { c[b.id] = (c[b.id] || 0) + 1; });
+    });
+    return { c: c, total: total, bestEP: bestEP, played: Object.keys(state.days).length };
+  }
+  function renderStats() {
+    var st = streaks(), co = collected(), have = Object.keys(co.c).length;
+    $('#stats').innerHTML = [
+      [st.cur, 'streak'], [st.best, 'best streak'], [co.played, 'played'], [fmtN(co.total), 'total EP'], [have + '/' + FC.BADGES.length, 'badges']
+    ].map(function (x) { return '<span><b>' + x[0] + '</b>' + x[1] + '</span>'; }).join('');
+  }
+
+
+  /* ---------- achievements (streaks and collecting) ---------- */
+  var ACHIEVEMENTS = [
+    { id: 'streak7', name: 'One Week', desc: 'Roll 7 days in a row', kind: 'streak', n: 7, icon: '🔥' },
+    { id: 'streak30', name: 'Monthly', desc: 'Roll 30 days in a row', kind: 'streak', n: 30, icon: '🔥' },
+    { id: 'streak100', name: 'Centurion', desc: 'Roll 100 days in a row', kind: 'streak', n: 100, icon: '🔥' },
+    { id: 'coll25', name: 'Collector', desc: 'Find 25 different badges', kind: 'coll', n: 25, icon: '📚' },
+    { id: 'coll50', name: 'Curator', desc: 'Find 50 different badges', kind: 'coll', n: 50, icon: '📚' },
+    { id: 'coll75', name: 'Completionist', desc: 'Find 75 different badges', kind: 'coll', n: 75, icon: '📚' }
+  ];
+  /* Worked out from your saved rolls, so it can never drift: {id: date earned}. */
+  function earnedAchievements() {
+    var keys = Object.keys(state.days).sort(), got = {}, run = 0, prev = null, seen = {}, uniq = 0;
+    keys.forEach(function (k) {
+      run = prev && prevDay(k) === prev ? run + 1 : 1; prev = k;
+      var d = state.days[k], sc = FC.score(d.fc, DATA.probs, racerCtx(d.p));
+      sc.kept.forEach(function (b) { if (!seen[b.id]) { seen[b.id] = 1; uniq++; } });
+      ACHIEVEMENTS.forEach(function (a) {
+        if (got[a.id]) return;
+        if ((a.kind === 'streak' && run >= a.n) || (a.kind === 'coll' && uniq >= a.n)) got[a.id] = k;
+      });
+    });
+    return got;
+  }
+  function renderAchBanner() {
+    var el = $('#achBanner'); if (!el) return;
+    var d = state.days[todayStr()], got = earnedAchievements(), fresh = ACHIEVEMENTS.filter(function (a) { return got[a.id] === todayStr(); });
+    if (!d || !fresh.length) { el.className = 'ach-banner'; el.textContent = ''; return; }
+    el.className = 'ach-banner on';
+    el.innerHTML = '🏆 Achievement unlocked: <b>' + fresh.map(function (a) { return esc(a.name); }).join(', ') + '</b> <span class="muted">(' + fresh.map(function (a) { return esc(a.desc); }).join('; ') + ')</span>';
+  }
+  function renderAchGrid() {
+    var got = earnedAchievements(), n = Object.keys(got).length;
+    $('#achSummary').textContent = n + ' of ' + ACHIEVEMENTS.length + ' achievements unlocked. Streaks and collecting count from the rolls saved on this device.';
+    $('#achGrid').innerHTML = ACHIEVEMENTS.map(function (a) {
+      var on = !!got[a.id];
+      return '<div class="tile ach' + (on ? '' : ' locked') + '"><span class="chip" style="--c:#f4c430">' + a.icon + ' Achievement</span><strong>' + esc(a.name) + '</strong><small>' + esc(a.desc) + '</small><small>' + (on ? 'Unlocked on day ' + dayNo(got[a.id]) : 'Not unlocked yet') + '</small></div>';
+    }).join('');
+  }
+
+  /* ---------- Today ---------- */
+  var shownDate = todayStr(), spinning = false;
+  function renderToday() {
+    shownDate = todayStr();
+    $('#dayLabel').textContent = '#' + dayNo(shownDate);
+    var card = $('#todayCard'), d = state.days[shownDate];
+    if (!d) {
+      card.innerHTML = miiHTML(null) + plateHTML(null, 'Day ' + dayNo(shownDate)) +
+        '<p class="tag">One roll per day. One real racer. What will yours be?</p>' +
+        '<button class="gen" id="rollBtn" type="button">Roll</button><p class="note" id="rollNote">Reloading the page gives you the same code.</p>' +
+        '<div class="opts"><label><input type="checkbox" id="fastBox"' + (state.fast ? ' checked' : '') + '> Skip the animation</label><label><input type="checkbox" id="soundBox"' + (state.sound === false ? '' : ' checked') + '> Sound</label></div>' +
+        (Object.keys(state.days).length ? '' : '<div class="howto"><strong>How to play</strong><ol><li>Roll once a day. You get one real Mario Kart Wii friend code from the Retro Rewind leaderboard.</li><li>Patterns in the digits, and facts about the racer, earn badges. Each badge adds EP, and rarer ones add far more.</li><li>Come back every day to build a streak, and use Compare to see whose roll was best.</li></ol></div>');
+      $('#rollBtn').addEventListener('click', doRoll);
+      $('#fastBox').addEventListener('change', function () { state.fast = this.checked; save(); });
+      $('#soundBox').addEventListener('change', function () { state.sound = this.checked; save(); if (this.checked) tone(660, 0, 0.12, 0.05); });
+    } else {
+      var v = scoreView(d.fc, d.p);
+      card.innerHTML = (d.p ? miiHTML(d.p) : '') + plateHTML(d.fc, 'Day ' + dayNo(shownDate)) + whoHTML(d.p) + resultHTML(d.fc, v) +
+        '<p class="pct" id="pctNote" role="status" aria-live="polite"></p><div class="row"><button class="btn" data-share type="button">Copy result</button><button class="btn" data-compare type="button">Compare with friends</button></div><p class="note" id="submitNote"></p>' +
+        '<textarea class="share" data-sharearea hidden readonly rows="4" aria-label="Result text"></textarea>';
+      attachShare(card, shareText(d.fc, shownDate, v, d.p));
+      card.querySelector('[data-compare]').addEventListener('click', function () { $('#t-compare').click(); });
+      markGold(card, v);
+      updateSubmitNote(); renderPct();
+      if (!d.p) lookupFC(d.fc).then(function (pl) { if (pl && state.days[shownDate] === d) { d.p = slim(pl); save(); if (!spinning && shownDate === todayStr()) renderToday(); } });
+    }
+    renderStats(); renderStreakBar(); renderAchBanner();
+  }
+
+  /* ---------- roll effects: sound, skip, celebration ---------- */
+  var actx = null;
+  function tone(freq, delay, dur, vol) {
+    if (state.sound === false) return;   // on unless the player turns it off
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + (delay || 0);
+      o.type = 'triangle'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol || 0.05, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+    } catch (e) {}
+  }
+  function confetti(n, colors) {
+    var cv = document.createElement('canvas'), W = window.innerWidth, H = window.innerHeight;
+    cv.width = W; cv.height = H; cv.setAttribute('aria-hidden', 'true');
+    cv.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:50';
+    var cx = cv.getContext('2d'); if (!cx) return;
+    document.body.appendChild(cv);
+    var ps = [], i; for (i = 0; i < n; i++) ps.push({ x: W / 2 + (Math.random() - 0.5) * W * 0.3, y: H * 0.35, vx: (Math.random() - 0.5) * 12, vy: -Math.random() * 11 - 2, r: Math.random() * 6 + 3, c: colors[i % colors.length], a: Math.random() * 6, va: (Math.random() - 0.5) * 0.4 });
+    var t0 = Date.now(), life = 2800;
+    (function step() {
+      var el = Date.now() - t0; if (el > life) { cv.remove(); return; }
+      cx.clearRect(0, 0, W, H); cx.globalAlpha = Math.max(0, 1 - el / life);
+      ps.forEach(function (p) { p.vy += 0.28; p.x += p.vx; p.y += p.vy; p.vx *= 0.99; p.a += p.va; cx.save(); cx.translate(p.x, p.y); cx.rotate(p.a); cx.fillStyle = p.c; cx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); cx.restore(); });
+      requestAnimationFrame(step);
+    })();
+  }
+  var FX_TIERS = { epic: 70, anomaly: 110, mythic: 170, creator: 230 };
+  var FX_NOTES = { epic: [523, 659, 784], anomaly: [523, 659, 784, 1047], mythic: [523, 659, 784, 1047, 1319], creator: [523, 659, 784, 1047, 1319, 1568] };
+  function celebrate(date) {
+    var d = state.days[date]; if (!d) return;
+    var v = scoreView(d.fc, d.p), id = v.sc.kept.some(function (b) { return b.tier === 'creator'; }) ? 'creator' : v.nt.id;
+    if (!FX_TIERS[id]) return;
+    (FX_NOTES[id] || []).forEach(function (f, i) { tone(f, i * 0.11, 0.5, 0.06); });
+    if (reduce) return;
+    var res = document.querySelector('#todayCard .result'); if (res) res.classList.add('fx');
+    var base = res ? getComputedStyle(res).getPropertyValue('--c').trim() : '#f46444';
+    confetti(FX_TIERS[id], [base || '#f46444', '#ffffff', '#f46444', '#d44dba', '#ffc21a']);
+  }
+  function afterRoll(date) { renderToday(); submitToday(); celebrate(date); }
+
+  var skipFlag = false;
+  function doRoll() {
+    if (spinning) return;
+    var btn = $('#rollBtn'); btn.disabled = true;
+    var go = function () {
+      var date = todayStr(), seed = myId || state.seed;
+      var have = state.days[date] ? Promise.resolve() : rollFor(seed, date).then(function (p) {
+        if (!state.days[date]) { state.days[date] = { fc: p.f, seed: seed, p: slim(p), t: Date.now() }; save(); }
+      });
+      have.then(function () {
+        var fin = state.days[date].fc;
+        if (reduce || state.fast) { afterRoll(date); return; }
+        spinning = true; skipFlag = false;
+        btn.insertAdjacentHTML('afterend', '<button class="btn" id="skipBtn" type="button">Skip</button>');
+        $('#skipBtn').addEventListener('click', function () { skipFlag = true; });
+        var lastLock = 0;
+        var t0 = Date.now(), el = $('#digits'), HOLD = 2600, STEP = 600, END = HOLD + STEP * 12 + 800;
+        function frame() {
+          var ms = Date.now() - t0, lock = Math.max(0, Math.min(12, Math.floor((ms - HOLD) / STEP) + 1)), out = '';
+          if (ms >= END || skipFlag) { spinning = false; afterRoll(date); return; }
+          if (lock > lastLock) { tone(330 + lock * 45, 0, 0.09, 0.035); lastLock = lock; }
+          for (var i = 0; i < 12; i++) {
+            out += i < lock ? fin[i] : String(Math.floor(Math.random() * 10));   // each digit spins on its own, then locks left to right
+            if (i === 3 || i === 7) out += '<i>-</i>';
+          }
+          el.innerHTML = out;
+          setTimeout(frame, 110);
+        }
+        frame();
+      }).catch(function () {
+        btn.disabled = false; var n = $('#rollNote'); if (n) n.textContent = 'Could not load the racer list. Check your connection and roll again.';
+      });
+    };
+    if (sharedReady) go(); else sharedPromise.then(go);
+  }
+
+  /* ---------- Score a code ---------- */
+  var EXAMPLE = '000100100100';
+  var checkToken = 0;
+  function showCheck(s, note) {
+    var tok = ++checkToken;
+    renderCheck(s, note, null);
+    lookupFC(s).then(function (pl) { if (tok === checkToken && pl) renderCheck(s, note, slim(pl)); });
+  }
+  function renderCheck(s, note, p) {
+    var v = scoreView(s, p), regions = FC.checksumRegions(s);
+    var chk = regions.length ? 'Checksum matches the ' + regions.join(' / ') + ' release of Mario Kart Wii.' : 'Checksum does not match any Mario Kart Wii region, so this may not be a real code. Scored anyway.';
+    $('#checkCard').innerHTML = (note ? '<p class="note">' + esc(note) + '</p>' : '') + (p ? miiHTML(p) : '') + plateHTML(s, '') + whoHTML(p) +
+      '<p class="note">' + chk + '</p>' + resultHTML(s, v) +
+''; 
+    markGold($('#checkCard'), v);
+  }
+  function onInput() {
+    var inp = $('#fcInput'), msg = $('#fcMsg');
+    var raw = inp.value, digitsOnly = raw.replace(/[^0-9]/g, '').slice(0, 12);
+    var f = digitsOnly.replace(/(\d{4})(?=\d)/g, '$1-');
+    if (/[^0-9\s-]/.test(raw)) { msg.textContent = 'Use digits only. Spaces and dashes are fine.'; msg.className = 'msg err'; inp.setAttribute('aria-invalid', 'true'); }
+    else { msg.textContent = ''; msg.className = 'msg'; inp.removeAttribute('aria-invalid'); }
+    inp.value = f;
+    if (digitsOnly.length === 12) { showCheck(digitsOnly); msg.textContent = ''; }
+    else if (digitsOnly.length > 0 && !/[^0-9\s-]/.test(raw)) { msg.textContent = (12 - digitsOnly.length) + ' more digits to go.'; }
+  }
+  $('#fcInput').addEventListener('input', onInput);
+  /* ---------- Collection ---------- */
+  function renderCollection() {
+    renderAchGrid();
+    var co = collected(), have = Object.keys(co.c).length;
+    $('#collSummary').textContent = have + ' of ' + FC.BADGES.length + ' badges found. Rarest first. A badge counts when it scored on one of your daily rolls.';
+    var list = FC.BADGES.map(function (b) { var p = DATA.probs[b.id] || 0; return { b: b, p: p, t: b.special ? FC.SPECIAL_TIER : FC.badgeTier(p) }; });
+    list.sort(function (x, y) { return x.p - y.p || x.b.name.localeCompare(y.b.name); });
+    $('#collGrid').innerHTML = list.map(function (x) {
+      var n = co.c[x.b.id] || 0;
+      return '<div class="tile tier-' + x.t.id + (n ? '' : ' locked') + '"><span class="chip">' + x.t.name + '</span><strong>' + esc(x.b.name) + '</strong><small>' + esc(x.b.desc) + '</small><small>' + oddsText({ id: x.b.id, p: x.p, special: x.b.special }) + (n ? ' · found ' + n + (n === 1 ? ' time' : ' times') : ' · not found yet') + '</small></div>';
+    }).join('');
+  }
+
+  /* ---------- Rules ---------- */
+  function renderRules() {
+    var epRange = ['Under 1,000', '1,000 to 10,000', '10,000 to 100,000', '100,000 to 1 million', '1 million to 10 million', '10 million and up'];
+    var bt = FC.BADGE_TIERS, labels = ['More than 10%', '1% to 10%', '0.1% to 1%', '0.01% to 0.1%', '0.001% to 0.01%', 'Under 0.001%'];
+    var nt = [['Mythic', 'Top 1%'], ['Anomaly', 'Top 5% to 1%'], ['Epic', 'Top 10% to 5%'], ['Rare', 'Top 25% to 10%'], ['Uncommon', 'Top 50% to 25%'], ['Common', 'Bottom 50%'], ['Trash', 'Bottom 1%']];
+    var h = '<h2>How a code is scored</h2>' +
+      '<p>Your 12 digits are checked against ' + FC.BADGES.length + ' pattern badges: runs of one digit, counting up or down, palindromes, repeating blocks, round numbers, primes, meme numbers and a few Mario Kart nods. Each badge you earn adds EP (entropy points). A badge is worth 100 divided by its odds, so a 1 in 11 badge is 1,100 EP and a 1 in 1,000 badge is 100,000 EP. Rarer badges are worth far more.</p>' +
+      '<h3 class="sub">Badge rarity and EP</h3><div class="tbl"><table><thead><tr><th>Tier</th><th>Odds of the badge</th><th>EP each</th></tr></thead><tbody>';
+    bt.forEach(function (t, i) { h += '<tr><td><span class="chip tier-' + t.id + '">' + t.name + '</span></td><td>' + labels[i] + ' of codes</td><td>' + epRange[i] + '</td></tr>'; });
+    h += '<tr><td><span class="chip tier-creator">Creator</span></td><td>Two special friend codes</td><td>' + fmtN(FC.SPECIAL_TIER.ep) + '</td></tr>';
+    h += '</tbody></table></div><p class="muted small" style="margin-top:8px">Odds come from scoring 4 million simulated friend codes, so a badge’s EP reflects how often it really shows up. Odds are floored at 1 in a million, which caps one badge at 100 million EP. A badge that only one racer in the list can earn shows “one of a kind”, like the two creator codes.</p>' +
+      '<h3 class="sub">Families</h3><p>Some badges are alternatives in the same family, like Triple, Quad and Quint for repeated digits. Only the highest one your code earns counts.</p>' +
+      '<h3 class="sub">Code rarity</h3><p style="margin-bottom:8px">Your EP total is compared with all simulated codes to place it in a tier.</p><div class="tbl"><table><thead><tr><th>Tier</th><th>Where you land</th></tr></thead><tbody>';
+    nt.forEach(function (t) { h += '<tr><td><span class="chip tier-' + t[0].toLowerCase() + '">' + t[0] + '</span></td><td>' + t[1] + '</td></tr>'; });
+    h += '</tbody></table></div>' +
+      '<h3 class="sub">The daily roll</h3><p>Every UTC day you get one roll: a real friend code picked from all ' + fmtN(POOL.n) + ' racers on the Retro Rewind (RWFC) VR leaderboard. Players the leaderboard marks as suspicious are left out. The pick comes from your player ID and the date, so reloading gives the same racer and tomorrow gives a new one. The list is a snapshot from November 20, 2026, so ranks and VR may have moved since. Only 200 of the top racers have a Mii saved here; everyone else gets a silhouette.</p>' +
+      '<h3 class="sub">Names and comparing</h3><p>Pick any name on the Today tab. It’s saved on this device and added to your copied result. To compare with friends without signing in, paste their copied results into the Compare tab. Each score is worked out again from the friend code, so an edited EP doesn’t change the ranking.</p>' +
+      '<h3 class="sub">Racer badges</h3><p>Some badges depend on who you rolled, not on the digits: a top 1,000, 100, 10 or #1 spot on the VR leaderboard, 25,000, 50,000 or 100,000 VR, and exactly 10,000 VR (Fresh Start). Their odds are the share of real racers who qualify. They count when you roll the racer, or when you score a code that belongs to one.</p>' +
+      '<h3 class="sub">Saving and settings</h3><p>Everything is saved in this browser. The Stats tab has a save code you can copy and restore on another device, and restoring checks each roll against the daily pick so a code can’t be edited into better rolls. Before you roll you can turn on Skip the animation and turn Sound off. Epic, Anomaly and Mythic rolls get a glow and confetti.</p>' +
+      '<h3 class="sub">Achievements</h3><p>Separate from EP: unlock One Week, Monthly and Centurion for 7, 30 and 100-day streaks, and Collector, Curator and Completionist for finding 25, 50 and 75 different badges. They are worked out from the rolls saved on this device.</p>' +
+      '<h3 class="sub">Streaks and stats</h3><p>Roll on consecutive UTC days to build a streak. It shows on the Today tab and in your copied result. The Stats tab tracks your best roll, rarest badge and every day you have played. When others who can post have rolled the same day, Today also shows how your roll ranks among them. All of it is recalculated from each roll.</p>' +
+      '<h3 class="sub">About the checksum note</h3><p>Real friend codes carry a hidden checksum tied to the game and region. The Score a code tab tells you if yours matches. A mismatch never lowers the score.</p>';
+    $('#rulesCard').innerHTML = h;
+  }
+
+  /* ---------- Leaderboard (shared database, signed-in viewers) ---------- */
+  var dbh = null, userh = null, myId = null, sharedReady = false, rows = null, boardErr = '', boardMode = 'today', submitState = '', scope = 'everyone', myFriends = [], myLikes = [];
+  var sharedPromise = (async function () {
+    try {
+      if (typeof claude === 'undefined') return;
+      var res = await Promise.all([claude.use('db'), claude.use('user')]);
+      dbh = res[0]; userh = res[1];
+      if (userh && userh.id) myId = await userh.id();
+    } catch (e) { dbh = null; }
+    sharedReady = true;
+    if (dbh && myId) {
+      var timer = setTimeout(function () { if (rows === null) { boardErr = 'slow'; renderBoard(); } }, 10000);
+      try {
+        dbh.collection('scores').onSnapshot(function (snap) { clearTimeout(timer); boardErr = ''; rows = snap.docs.map(function (d) { return { id: d.id, data: d.data() || {} }; }); syncFriends(); renderBoard(); renderPct(); if ($('#p-feed').classList.contains('on')) renderFeed(); },
+          function (err) { clearTimeout(timer); boardErr = err && err.code || 'error'; renderBoard(); });
+      } catch (e) { boardErr = 'error'; }
+      submitToday();
+    }
+    renderBoard(); renderToday();
+  })();
+
+  function updateSubmitNote() {
+    var n = $('#submitNote'); if (!n) return;
+    n.textContent = submitState === 'ok' ? 'Counted in today’s ranking.' : submitState === 'ro' ? 'Your access is view-only, so this roll stays on this device.' : submitState === 'skip' ? 'This roll was made before you signed in, so it stays on this device.' : '';
+  }
+  var pctToken = 0;
+  async function renderPct() {
+    var el = $('#pctNote'); if (!el) return;
+    var d = state.days[todayStr()]; if (!d) { el.textContent = ''; return; }
+    if (!dbh || !myId || rows === null) { el.textContent = ''; return; }
+    var tok = ++pctToken, all; try { all = await boardEntries(); } catch (e) { return; }
+    if (tok !== pctToken) return; el = $('#pctNote'); if (!el) return;
+    var mine = FC.score(d.fc, DATA.probs, racerCtx(d.p)).total;
+    var others = all.filter(function (e) { return e.todayEP !== null && e.id !== myId; });
+    if (!others.length) { el.innerHTML = 'No one else has posted a roll today yet.'; return; }
+    var below = 0, tie = 0, above = 0;
+    others.forEach(function (e) { if (e.todayEP < mine) below++; else if (e.todayEP === mine) tie++; else above++; });
+    var pct = Math.round((below + tie / 2) / others.length * 100), n = others.length;
+    el.innerHTML = 'You beat <b>' + pct + '%</b> of the ' + n + (n === 1 ? ' other player' : ' other players') + ' who rolled today. <b>#' + (above + 1) + '</b> of ' + (n + 1) + '.';
+  }
+  var submitting = false;
+  async function submitToday() {
+    if (!dbh || !myId || submitting) return;
+    var date = todayStr(), d = state.days[date];
+    if (!d) return;
+    if (d.seed !== myId) { submitState = 'skip'; updateSubmitNote(); return; }
+    submitting = true;
+    try {
+      var ref = dbh.doc('scores/' + myId), snap = await ref.get(), cur = snap.exists ? snap.data() : null;
+      if (!(cur && cur.days && cur.days[date])) {
+        var entry = { seed: d.seed, fc: d.fc, t: d.t || Date.now() };
+        if (cur) await ref.update({ days: (function () { var o = {}; o[date] = entry; return o; })() });
+        else { var days = {}; days[date] = entry; await ref.set({ days: days }); }
+      }
+      submitState = 'ok';
+    } catch (e) { submitState = 'ro'; }
+    submitting = false; updateSubmitNote();
+  }
+  /* ---------- friends ---------- */
+  var MAX_FRIENDS = 200;
+  function syncFriends() {
+    var mine = (rows || []).filter(function (r) { return r.id === myId; })[0];
+    var f = mine && mine.data && mine.data.friends;
+    myFriends = Array.isArray(f) ? f.filter(function (x) { return typeof x === 'string' && x !== myId; }).slice(0, MAX_FRIENDS) : [];
+    var l = mine && mine.data && mine.data.likes;
+    myLikes = Array.isArray(l) ? l.filter(function (x) { return typeof x === 'string'; }).slice(0, 400) : [];
+  }
+  function friendMsg(text, bad) { var m = $('#friendMsg'); m.textContent = text || ''; m.className = 'msg' + (bad ? ' err' : ''); }
+  async function saveFriends(list) {
+    myFriends = list; renderBoard(); if ($('#p-feed').classList.contains('on')) renderFeed();
+    try {
+      var ref = dbh.doc('scores/' + myId), snap = await ref.get();
+      if (snap.exists) await ref.update({ friends: list }); else await ref.set({ friends: list });
+    } catch (e) { friendMsg('Could not save your friends list. Your access may be view-only.', true); }
+  }
+  function toggleFriend(id) {
+    if (id === myId) return;
+    var i = myFriends.indexOf(id);
+    if (i >= 0) saveFriends(myFriends.filter(function (x) { return x !== id; }));
+    else if (myFriends.length >= MAX_FRIENDS) friendMsg('You can have up to ' + MAX_FRIENDS + ' friends.', true);
+    else saveFriends(myFriends.concat([id]));
+  }
+  function setScope(s) {
+    scope = s;
+    $('#fEveryone').setAttribute('aria-pressed', s === 'everyone' ? 'true' : 'false');
+    $('#fFriends').setAttribute('aria-pressed', s === 'friends' ? 'true' : 'false');
+    renderBoard();
+  }
+  $('#fEveryone').addEventListener('click', function () { setScope('everyone'); });
+  $('#fFriends').addEventListener('click', function () { setScope('friends'); });
+  $('#addFriend').addEventListener('click', function () {
+    var v = ($('#addIdField').value || '').trim();
+    if (!v) { friendMsg('Paste your friend’s player ID first.', true); return; }
+    if (v === myId) { friendMsg('That’s your own ID.', true); return; }
+    if (myFriends.indexOf(v) >= 0) { friendMsg('You’re already friends.', true); return; }
+    if (!(rows || []).some(function (r) { return r.id === v; })) { friendMsg('No player with that ID has posted a roll yet.', true); return; }
+    $('#addIdField').value = ''; friendMsg('Friend added.'); toggleFriend(v);
+  });
+  $('#copyId').addEventListener('click', function () {
+    var f = $('#myIdField'); f.focus(); f.select();
+    try { navigator.clipboard.writeText(f.value).then(function () { friendMsg('Player ID copied.'); }, function () { friendMsg('Press Ctrl+C to copy the selected ID.'); }); } catch (e) { friendMsg('Press Ctrl+C to copy the selected ID.'); }
+  });
+
+  async function boardEntries() {
+    var today = todayStr(), now = Date.parse(today + 'T00:00:00Z'), cands = [];
+    (rows || []).forEach(function (r) {
+      var days = r.data.days || {};
+      Object.keys(days).forEach(function (date) {
+        var e = days[date], t = Date.parse(date + 'T00:00:00Z');
+        if (!e || isNaN(t) || t > now || t < EPOCH || e.seed !== r.id || typeof e.fc !== 'string') return;
+        var p = FC.parse(e.fc); if (!p.ok) return;
+        cands.push({ id: r.id, date: date, s: p.s, seed: e.seed });
+      });
+    });
+    await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; }, function () {}); }));
+    var by = {};
+    cands.forEach(function (c) {
+      if (!c.pl || c.pl.f !== c.s) return;
+      var o = by[c.id] || (by[c.id] = { id: c.id, total: 0, bestEP: 0, n: 0, todayEP: null, todayFC: null, todayPl: null, top: '', dates: [] });
+      o.dates.push(c.date);
+      var sc = FC.score(c.s, DATA.probs, racerCtx(c.pl));
+      o.total += sc.total; o.n++; if (sc.total > o.bestEP) o.bestEP = sc.total;
+      if (c.date === today) { o.todayEP = sc.total; o.todayFC = c.s; o.todayPl = c.pl; o.top = sc.kept[0] ? sc.kept[0].name : ''; }
+    });
+    return Object.keys(by).map(function (k) { return by[k]; });
+  }
+  var boardToken = 0;
+  var SHOW_BOARD = false;   // the Leaderboard and Feed tabs were removed: link viewers can't post to a shared board
+  async function renderBoard() {
+    if (!SHOW_BOARD) return;
+    var msg = $('#boardMsg'), list = $('#boardList'), tok = ++boardToken;
+    if (!dbh || !myId) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = 'The leaderboard needs you to be signed in to Claude. Your rolls and streaks still save on this device, and you can use the page without signing in.'; return; }
+    if (boardErr && rows === null) { list.innerHTML = ''; msg.className = 'msg err'; msg.textContent = boardErr === 'slow' ? 'The leaderboard is taking a while to load.' : 'The leaderboard could not be loaded right now.'; return; }
+    if (rows === null) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = 'Loading the leaderboard...'; return; }
+    var all; try { all = await boardEntries(); } catch (e) { all = []; }
+    if (tok !== boardToken) return;
+    $('#friendBox').hidden = scope !== 'friends'; $('#myIdField').value = myId;
+    var items, byId = {}; all.forEach(function (e) { byId[e.id] = e; });
+    var val = function (e) { return boardMode === 'today' ? e.todayEP : e.total; };
+    if (scope === 'friends') {
+      var ids = [myId].concat(myFriends);
+      items = ids.map(function (id) { return byId[id] || { id: id, total: 0, bestEP: 0, n: 0, todayEP: null, todayFC: null, todayPl: null, top: '', idle: true }; });
+      items.forEach(function (e) { e.idle = boardMode === 'today' ? e.todayEP === null : !e.n; });
+      items.sort(function (a, b) { if (a.idle !== b.idle) return a.idle ? 1 : -1; return (val(b) || 0) - (val(a) || 0); });
+      msg.className = 'msg'; msg.textContent = myFriends.length ? 'You and your friends. Scores are recalculated from each roll, so they can’t be edited.' : 'No friends yet. Add one below, or switch to Everyone and tap Add next to a player.';
+    } else {
+      if (boardMode === 'today') items = all.filter(function (e) { return e.todayEP !== null; }).sort(function (a, b) { return b.todayEP - a.todayEP; });
+      else items = all.slice().sort(function (a, b) { return b.total - a.total; });
+      msg.className = 'msg'; msg.textContent = items.length ? 'Scores are recalculated from each roll, so they can’t be edited.' : (boardMode === 'today' ? 'Nobody has rolled yet today.' : 'No rolls posted yet.');
+    }
+    renderHof();
+    var names = {};
+    try { if (userh && userh.profiles && items.length) names = await userh.profiles(items.map(function (e) { return e.id; })) || {}; } catch (e) {}
+    if (tok !== boardToken) return;
+    list.innerHTML = '';
+    items.forEach(function (e, i) {
+      var li = document.createElement('li'); if (e.id === myId) li.className = 'me'; else if (e.idle) li.className = 'idle';
+      var pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = i + 1;
+      var who = document.createElement('div'); var nm = document.createElement('strong');
+      var pl = e.todayPl; if (pl && MIISET[pl.f]) { var av = document.createElement('img'); av.className = 'av'; av.src = 'miis_fc/' + pl.f + '.webp'; av.alt = ''; who.appendChild(av); }
+      nm.textContent = (names[e.id] && names[e.id].name) || (e.id === myId ? 'You' : 'Player'); who.appendChild(nm);
+      var sub = document.createElement('span'); sub.className = 'muted small'; sub.style.display = 'block';
+      sub.textContent = e.idle ? (boardMode === 'today' ? 'Hasn’t rolled yet today' : 'No rolls yet') : boardMode === 'today' ? (e.todayPl ? pname(e.todayPl) + ' · ' : '') + pretty(e.todayFC) + (e.top ? ' · ' + e.top : '') : e.n + (e.n === 1 ? ' day' : ' days') + ' · best day ' + fmtN(e.bestEP) + ' EP' + (e.dates && bestRun(e.dates) >= 2 ? ' · 🔥 ' + bestRun(e.dates) + '-day best streak' : '');
+      who.appendChild(sub);
+      var ep = document.createElement('b'); ep.textContent = e.idle ? '–' : fmtN(boardMode === 'today' ? e.todayEP : e.total) + ' EP'; ep.style.fontVariantNumeric = 'tabular-nums';
+      var sp = document.createElement('span');
+      if (e.id !== myId) {
+        var isF = myFriends.indexOf(e.id) >= 0, fb = document.createElement('button');
+        fb.type = 'button'; fb.className = 'fbtn' + (isF ? ' on' : ''); fb.textContent = isF ? 'Friends ✓' : 'Add';
+        fb.setAttribute('aria-label', (isF ? 'Remove ' : 'Add ') + ((names[e.id] && names[e.id].name) || 'this player') + (isF ? ' from friends' : ' as a friend'));
+        (function (id) { fb.addEventListener('click', function () { toggleFriend(id); }); })(e.id);
+        sp.appendChild(fb);
+      }
+      li.appendChild(pos); li.appendChild(who); li.appendChild(ep); li.appendChild(sp); list.appendChild(li);
+    });
+  }
+  $('#bToday').addEventListener('click', function () { boardMode = 'today'; $('#bToday').setAttribute('aria-pressed', 'true'); $('#bAll').setAttribute('aria-pressed', 'false'); renderBoard(); });
+  $('#bAll').addEventListener('click', function () { boardMode = 'all'; $('#bAll').setAttribute('aria-pressed', 'true'); $('#bToday').setAttribute('aria-pressed', 'false'); renderBoard(); });
+
+
+
+  /* ---------- name (guest) and compare ---------- */
+  function cleanName(v) { return String(v || '').replace(/[\u0000-\u001f\u007f()<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 20); }
+  function renderName() {
+    $('#nameShow').innerHTML = state.name ? 'Playing as <strong>' + esc(state.name) + '</strong>' : 'Playing as a guest';
+    $('#nameEdit').textContent = state.name ? 'Change' : 'Choose a name';
+  }
+  $('#nameEdit').addEventListener('click', function () {
+    $('#nameForm').hidden = false; $('#nameEdit').hidden = true; var i = $('#nameInput'); i.value = state.name || ''; i.focus(); i.select();
+  });
+  /* Reserved name: the creator's name needs a password. The check runs in the page, so it deters casual copying, not a determined reader of the code. */
+  var RESERVED = {"salt": "BNJVoUF+41CX0B9rp2NF1Q==", "iters": 200000, "hash": "ZnRSQcZUSWZVhx0J+LY4nYrF4+Azpo9ayghM1bJlqFQ="};
+  function normName(n) { return String(n).toLowerCase().replace(/[01345@$7]/g, function (c) { return { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '@': 'a', '$': 's', '7': 't' }[c]; }).replace(/[^a-z]/g, ''); }
+  function isReserved(n) { var x = normName(n); return x.indexOf('steperd') >= 0 || x.indexOf('stepperd') >= 0; }
+  function b64(s) { var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+  async function pwOk(pw) {
+    try {
+      var key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+      var bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: b64(RESERVED.salt), iterations: RESERVED.iters }, key, 256));
+      var want = b64(RESERVED.hash), d = 0; for (var i = 0; i < want.length; i++) d |= bits[i] ^ want[i];
+      return want.length === bits.length && d === 0;
+    } catch (e) { return false; }
+  }
+  if (state.name && isReserved(state.name) && !state.unlock) { state.name = ''; save(); }
+  async function saveName() {
+    var name = cleanName($('#nameInput').value), pwEl = $('#namePw'), msg = $('#nameMsg');
+    msg.textContent = ''; msg.className = 'msg';
+    if (name && isReserved(name) && !state.unlock) {
+      if (pwEl.hidden) { pwEl.hidden = false; pwEl.focus(); msg.textContent = 'That name is reserved. Enter its password to use it.'; return; }
+      if (!(await pwOk(pwEl.value))) { msg.className = 'msg err'; msg.textContent = 'Wrong password.'; return; }
+      state.unlock = true;
+    }
+    state.name = name; save(); pwEl.value = ''; pwEl.hidden = true;
+    $('#nameForm').hidden = true; $('#nameEdit').hidden = false; renderName(); renderToday();
+  }
+  $('#nameSave').addEventListener('click', saveName);
+  $('#nameInput').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') saveName(); });
+  $('#namePw').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') saveName(); });
+
+  async function runCompare() {
+    var text = $('#cmpIn').value, re = /FCdle[^\n]*?(\d{4}-\d{4}-\d{4})(?:[ \t]*\(([^)\n]{1,20})\))?/g, m, seen = {}, items = [];
+    while ((m = re.exec(text))) {
+      var s = m[1].replace(/-/g, ''), nm = cleanName(m[2]), k = s + '|' + nm;
+      if (!seen[k]) { seen[k] = 1; items.push({ s: s, name: nm || 'Unknown', mine: false }); }
+    }
+    var d = state.days[todayStr()];
+    if (d && !items.some(function (x) { return x.s === d.fc; })) items.push({ s: d.fc, name: state.name || 'You', mine: true });
+    var msg = $('#cmpMsg'), list = $('#cmpList');
+    if (!items.length) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = text.trim() ? 'No results found. Paste messages that start with “FCdle”.' : 'Paste at least one result first.'; return; }
+    await Promise.all(items.map(function (x) { return lookupFC(x.s).then(function (p) { x.pl = p; }); }));
+    var skipped = items.filter(function (x) { return !x.pl; }).length;
+    items = items.filter(function (x) { return x.pl; });   // only codes that belong to a real leaderboard racer can be rolled
+    if (!items.length) { list.innerHTML = ''; msg.className = 'msg err'; msg.textContent = 'None of those codes belong to a racer on the leaderboard, so they can’t be real rolls.'; return; }
+    items.forEach(function (x) { x.sc = FC.score(x.s, DATA.probs, racerCtx(x.pl)); });
+    items.sort(function (a, b) { return b.sc.total - a.sc.total; });
+    msg.className = 'msg'; msg.textContent = items.length + (items.length === 1 ? ' result' : ' results') + ', highest EP first.' + (skipped ? ' Skipped ' + skipped + ' with a code that isn’t a leaderboard racer.' : '');
+    list.innerHTML = items.map(function (x, i) {
+      var top = x.sc.kept[0] ? x.sc.kept[0].name : '';
+      return '<li' + (x.mine ? ' class="me"' : '') + '><span class="pos">' + (i + 1) + '</span><div><strong>' + esc(x.name) + '</strong><span class="muted small" style="display:block">' + (x.pl ? esc(pname(x.pl)) + ' · ' : '') + esc(pretty(x.s)) + (top ? ' · ' + esc(top) : '') + '</span></div><b style="font-variant-numeric:tabular-nums">' + fmtN(x.sc.total) + ' EP</b><span></span></li>';
+    }).join('');
+  }
+  $('#cmpGo').addEventListener('click', runCompare);
+  $('#cmpClear').addEventListener('click', function () { $('#cmpIn').value = ''; $('#cmpList').innerHTML = ''; $('#cmpMsg').textContent = ''; });
+
+  /* ---------- feed ---------- */
+  var FEED_MILESTONES = [10, 25, 50, 75];
+  async function verifiedRolls() {
+    var today = todayStr(), now = Date.parse(today + 'T00:00:00Z'), cands = [];
+    (rows || []).forEach(function (r) {
+      var days = r.data.days || {};
+      Object.keys(days).forEach(function (date) {
+        var e = days[date], tt = Date.parse(date + 'T00:00:00Z');
+        if (!e || isNaN(tt) || tt > now || tt < EPOCH || e.seed !== r.id || typeof e.fc !== 'string') return;
+        var p = FC.parse(e.fc); if (!p.ok) return;
+        var t = (typeof e.t === 'number' && e.t > 0 && e.t <= Date.now() + 60000 && new Date(e.t).toISOString().slice(0, 10) === date) ? e.t : null;
+        cands.push({ id: r.id, date: date, s: p.s, seed: e.seed, t: t });
+      });
+    });
+    await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; }, function () {}); }));
+    return cands.filter(function (c) { return c.pl && c.pl.f === c.s; });
+  }
+  function ago(ms, date) {
+    if (ms == null) return date;
+    var s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+  function heartBtn(key, counts) {
+    var on = myLikes.indexOf(key) >= 0, n = counts[key] || 0;
+    return '<button type="button" class="heart' + (on ? ' on' : '') + '" data-like="' + esc(key) + '" aria-pressed="' + on + '" aria-label="' + (on ? 'Unlike' : 'Like') + '">' + (on ? '♥' : '♡') + (n ? '<small>' + n + '</small>' : '') + '</button>';
+  }
+  function fpill(b) { return '<span class="fpill tier-' + b.tier + '" title="' + esc(b.tierName + ': ' + b.desc) + '">' + (FAM_EMOJI[b.family] || '🎲') + ' ' + esc(b.name) + '</span>'; }
+  var feedToken = 0;
+  async function renderFeed() {
+    if (!SHOW_BOARD) return;
+    var msg = $('#feedMsg'), list = $('#feedList'), tok = ++feedToken;
+    if (!dbh || !myId) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = 'Friends and the feed need you to be signed in to Claude. Your rolls still save on this device.'; return; }
+    if (boardErr && rows === null) { list.innerHTML = ''; msg.className = 'msg err'; msg.textContent = 'The feed could not be loaded right now.'; return; }
+    if (rows === null) { list.innerHTML = ''; msg.className = 'msg'; msg.textContent = 'Loading the feed...'; return; }
+    var vr; try { vr = await verifiedRolls(); } catch (e) { vr = []; }
+    if (tok !== feedToken) return;
+    var counts = {};
+    rows.forEach(function (r) { (Array.isArray(r.data.likes) ? r.data.likes : []).forEach(function (k) { if (typeof k === 'string') counts[k] = (counts[k] || 0) + 1; }); });
+    // per player: what each roll added to their collection
+    var byUser = {}; vr.forEach(function (c) { (byUser[c.id] = byUser[c.id] || []).push(c); });
+    Object.keys(byUser).forEach(function (id) {
+      var seen = {}, n = 0;
+      byUser[id].sort(function (a, b) { return a.date < b.date ? -1 : 1; }).forEach(function (c) {
+        var sc = FC.score(c.s, DATA.probs, racerCtx(c.pl)); c.sc = sc; c.fresh = [];
+        sc.kept.forEach(function (b) { if (!seen[b.id]) { seen[b.id] = 1; c.fresh.push(b); n++; } });
+        c.unique = n; c.milestone = null;
+        FEED_MILESTONES.forEach(function (m) { if (n >= m && n - c.fresh.length < m) c.milestone = m; });
+      });
+    });
+    var who = {}; who[myId] = 1; myFriends.forEach(function (f) { who[f] = 1; });
+    var posts = vr.filter(function (c) { return who[c.id]; });
+    posts.sort(function (a, b) { return (b.t || Date.parse(b.date + 'T00:00:00Z')) - (a.t || Date.parse(a.date + 'T00:00:00Z')); });
+    posts = posts.slice(0, 40);
+    msg.className = 'msg';
+    msg.textContent = !myFriends.length ? 'Add friends on the Leaderboard tab to see what they roll. Your own rolls show up here too.' : (posts.length ? '' : 'Nothing here yet.');
+    var names = {};
+    try { if (userh && userh.profiles && posts.length) names = await userh.profiles(posts.map(function (c) { return c.id; })) || {}; } catch (e) {}
+    if (tok !== feedToken) return;
+    list.innerHTML = posts.map(function (c) {
+      var sc = c.sc, r = FC.rank(sc.total, DATA.cdf), nt = FC.numberTier(r), key = c.id + '|' + c.date;
+      var nm = (names[c.id] && names[c.id].name) || (c.id === myId ? 'You' : 'Player');
+      var all = []; sc.kept.forEach(function (b) { all.push(b); sc.shadowed.forEach(function (x) { if (x.by === b.name && x.family === b.family) all.push(x); }); });
+      var top = all.slice(0, 3), more = all.length - top.length;
+      var h = '<article class="post tier-' + nt.id + '"><div class="post-top"><span class="post-name">' + esc(nm) + '</span><span class="post-time">' + esc(ago(c.t, c.date)) + '</span></div>' +
+        '<div class="post-mid"><div class="post-digits">' + esc(pretty(c.s)) + '</div><div class="post-meta"><span class="chip tier-' + nt.id + '">' + nt.name + '</span><div class="post-ep">' + fmtN(sc.total) + ' EP · ' + esc(pname(c.pl)) + '</div></div></div>' +
+        '<div class="row-end"><div class="post-pills">' + top.map(fpill).join('') + (more > 0 ? '<span class="more">+' + more + ' more</span>' : '') + '</div>' + heartBtn(key, counts) + '</div></article>';
+      var sub = '';
+      if (c.fresh.length) {
+        var f3 = c.fresh.slice(0, 3), fm = c.fresh.length - f3.length;
+        sub += '<div class="subcard"><h4>Earned ' + c.fresh.length + ' new badge' + (c.fresh.length === 1 ? '' : 's') + '</h4><div class="items">' +
+          f3.map(function (b) { return fpill(b) + heartBtn(key + '|' + b.id, counts); }).join('') + (fm > 0 ? '<span class="more">+' + fm + ' more</span>' : '') + '</div></div>';
+      }
+      if (c.milestone) sub += '<div class="subcard gold row-end"><h4>🏆 Reached ' + c.milestone + ' unique badges collected</h4>' + heartBtn(key + '|m' + c.milestone, counts) + '</div>';
+      return h + (sub ? '<div class="thread">' + sub + '</div>' : '');
+    }).join('');
+  }
+  $('#feedList').addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-like]'); if (!b || !dbh || !myId) return;
+    var key = b.getAttribute('data-like'), i = myLikes.indexOf(key), next = i >= 0 ? myLikes.filter(function (k) { return k !== key; }) : myLikes.concat([key]).slice(-400);
+    myLikes = next; renderFeed();
+    (async function () {
+      try { var ref = dbh.doc('scores/' + myId), snap = await ref.get(); if (snap.exists) await ref.update({ likes: next }); else await ref.set({ likes: next }); } catch (e) {}
+    })();
+  });
+  setInterval(function () { if ($('#p-feed').classList.contains('on')) renderFeed(); }, 60000);
+
+
+
+  /* ---------- Compare: your result, ready to send ---------- */
+  function copyText(text, btn, area, doneLabel) {
+    var label = btn.textContent;
+    function fallback() { area.focus(); area.select(); btn.textContent = 'Press Ctrl+C'; setTimeout(function () { btn.textContent = label; }, 2200); }
+    try { navigator.clipboard.writeText(text).then(function () { btn.textContent = doneLabel || 'Copied'; setTimeout(function () { btn.textContent = label; }, 1800); }, fallback); } catch (e) { fallback(); }
+  }
+  function renderMine() {
+    var el = $('#mineCard'), d = state.days[todayStr()];
+    if (!d) {
+      el.innerHTML = '<h2>Compare with friends</h2><p class="muted small">Roll today first, then send your result to friends and paste theirs below to see who rolled best. It works without signing in.</p><div class="row"><button class="btn" id="mineGo" type="button">Go roll</button></div>';
+      $('#mineGo').addEventListener('click', function () { $('#t-today').click(); });
+      return;
+    }
+    var text = shareText(d.fc, todayStr(), scoreView(d.fc, d.p), d.p), canShare = !!navigator.share;
+    el.innerHTML = '<h2>Your result</h2><ol class="steps"><li>Copy your result and send it to a friend.</li><li>Paste their result in the box below.</li><li>Tap Rank them.</li></ol>' +
+      '<textarea id="mineText" readonly rows="7" aria-label="Your result"></textarea>' +
+      '<div class="row"><button class="btn" id="mineCopy" type="button">Copy my result</button>' + (canShare ? '<button class="btn" id="mineShare" type="button">Share</button>' : '') + '</div>';
+    $('#mineText').value = text;
+    $('#mineCopy').addEventListener('click', function () { copyText(text, this, $('#mineText')); });
+    if (canShare) $('#mineShare').addEventListener('click', function () { try { navigator.share({ text: text }).catch(function () {}); } catch (e) {} });
+  }
+
+
+  /* ---------- save code: back up and restore ---------- */
+  var SAVE_PREFIX = 'FCDLE1:';
+  function makeSaveCode() {
+    var d = Object.keys(state.days).sort().map(function (k) { var x = state.days[k]; return [k, x.fc, x.seed && x.seed !== state.seed ? x.seed : '', x.t || 0]; });
+    var obj = { v: 1, s: state.seed, n: state.name && !isReserved(state.name) ? state.name : '', d: d };
+    return SAVE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  }
+  function renderBackup() { $('#saveOut').value = Object.keys(state.days).length ? makeSaveCode() : ''; $('#saveOut').placeholder = 'Roll once and your save code appears here.'; }
+  function saveMsg(text, bad) { var m = $('#saveMsg'); m.textContent = text; m.className = 'msg' + (bad ? ' err' : ''); }
+  async function restoreSave() {
+    var raw = ($('#saveIn').value || '').replace(/\s+/g, ''), obj;
+    if (!raw) { saveMsg('Paste a save code first.', true); return; }
+    try {
+      if (raw.indexOf(SAVE_PREFIX) !== 0) throw 0;
+      obj = JSON.parse(decodeURIComponent(escape(atob(raw.slice(SAVE_PREFIX.length)))));
+      if (!obj || obj.v !== 1 || !Array.isArray(obj.d) || obj.d.length > 1000 || typeof obj.s !== 'string' || obj.s.length > 80) throw 0;
+    } catch (e) { saveMsg('That doesn’t look like a valid save code.', true); return; }
+    var today = todayStr(), cands = [];
+    obj.d.forEach(function (x) {
+      if (!Array.isArray(x)) return;
+      var date = x[0], fc = x[1], seed = x[2] || obj.s, tm = x[3];
+      if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today || Date.parse(date + 'T00:00:00Z') < EPOCH) return;
+      if (typeof fc !== 'string' || !FC.parse(fc).ok || typeof seed !== 'string' || seed.length > 80) return;
+      cands.push({ date: date, fc: fc, seed: seed, t: typeof tm === 'number' ? tm : 0 });
+    });
+    saveMsg('Checking your rolls...');
+    var okc = await Promise.all(cands.map(function (c) { return playerAt(pickIndex(c.seed, c.date)).then(function (pl) { c.pl = pl; return pl.f === c.fc; }, function () { return false; }); }));
+    var fresh = !Object.keys(state.days).length, added = 0, had = 0, bad = obj.d.length - okc.filter(Boolean).length;
+    cands.forEach(function (c, i) {
+      if (!okc[i]) return;
+      if (state.days[c.date]) { had++; return; }
+      state.days[c.date] = { fc: c.fc, seed: c.seed, p: slim(c.pl), t: c.t || 0 }; added++;
+    });
+    if (fresh && added && obj.s) state.seed = obj.s;
+    var nm = cleanName(obj.n); if (!state.name && nm && !isReserved(nm)) state.name = nm;
+    save(); renderName(); renderToday(); renderStatsTab(); renderBackup();
+    saveMsg('Restored ' + added + (added === 1 ? ' day' : ' days') + (had ? ', ' + had + ' already here' : '') + (bad ? ', ' + bad + ' couldn’t be verified and were skipped' : '') + '.', !added && !had);
+    if (added) $('#saveIn').value = '';
+  }
+  $('#saveRestore').addEventListener('click', restoreSave);
+  $('#saveCopy').addEventListener('click', function () { var a = $('#saveOut'); if (!a.value) { saveMsg('Nothing to back up yet. Roll first.', true); return; } copyText(a.value, this, a, 'Copied'); });
+
+  /* ---------- Stats tab ---------- */
+  var TIER_ORDER = ['mythic', 'anomaly', 'epic', 'rare', 'uncommon', 'common', 'trash'];
+  var TIER_NAMES = { mythic: 'Mythic', anomaly: 'Anomaly', epic: 'Epic', rare: 'Rare', uncommon: 'Uncommon', common: 'Common', trash: 'Trash' };
+  function renderStatsTab() {
+    var el = $('#statsCard'), keys = Object.keys(state.days).sort();
+    if (!keys.length) { el.innerHTML = '<h2>Your stats</h2><p class="muted">Roll today and your stats start here: streaks, best roll, rarest badge and a history of every day.</p>'; return; }
+    var st = streaks(), total = 0, best = null, rarest = null, tiers = {}, btiers = {}, hist = [];
+    keys.forEach(function (k) {
+      var d = state.days[k], v = scoreView(d.fc, d.p); total += v.sc.total;
+      tiers[v.nt.id] = (tiers[v.nt.id] || 0) + 1;
+      if (!best || v.sc.total > best.ep) best = { ep: v.sc.total, date: k, fc: d.fc, p: d.p, nt: v.nt };
+      v.sc.kept.forEach(function (b) {
+        btiers[b.id] = 1;
+        if (!b.special && (!rarest || b.p < rarest.b.p)) rarest = { b: b, date: k };
+      });
+      hist.push({ date: k, fc: d.fc, p: d.p, ep: v.sc.total, nt: v.nt });
+    });
+    var played = keys.length, avg = Math.round(total / played), have = Object.keys(btiers).length;
+    var h = '<h2>Your stats</h2><div class="kpis">' + [
+      [st.cur + ' 🔥', 'Current streak'], [st.best, 'Best streak'], [played, 'Days played'],
+      [fmtN(total), 'Total EP'], [fmtN(avg), 'Average per day'], [have + '/' + FC.BADGES.length, 'Badges found']
+    ].map(function (x) { var s = String(x[0]); return '<div class="kpi"><b' + (s.length >= 10 ? ' style="font-size:17px"' : '') + '>' + s + '</b><span>' + x[1] + '</span></div>'; }).join('') + '</div>';
+    var ga = earnedAchievements(), na = Object.keys(ga).length;
+    h += '<h3 class="sub">Achievements</h3><p>' + (na ? ACHIEVEMENTS.filter(function (a) { return ga[a.id]; }).map(function (a) { return a.icon + ' <b>' + esc(a.name) + '</b>'; }).join(' · ') : '<span class="muted">None yet.</span>') + ' <span class="muted">' + na + '/' + ACHIEVEMENTS.length + '</span></p>';
+    h += '<h3 class="sub">Best roll</h3><p><span class="chip tier-' + best.nt.id + '">' + best.nt.name + '</span> <b>' + fmtN(best.ep) + ' EP</b> · ' + pretty(best.fc) + (best.p ? ' · ' + esc(pname(best.p)) : '') + ' · <span class="muted">Day ' + dayNo(best.date) + '</span></p>';
+    if (rarest) h += '<h3 class="sub">Rarest badge</h3><p><span class="chip tier-' + rarest.b.tier + '">' + rarest.b.tierName + '</span> <b>' + esc(rarest.b.name) + '</b> · ' + oddsText(rarest.b) + ' · <span class="muted">Day ' + dayNo(rarest.date) + '</span></p>';
+    h += '<h3 class="sub">Rolls by rarity</h3><div class="bars">' + TIER_ORDER.map(function (id) {
+      var n = tiers[id] || 0; return '<div class="bar-row tier-' + id + '"><span>' + TIER_NAMES[id] + '</span><div class="trk"><i style="width:' + (n / played * 100).toFixed(1) + '%"></i></div><em>' + n + '</em></div>';
+    }).join('') + '</div>';
+    h += '<h3 class="sub">Badge progress by rarity</h3><div class="bars">' + FC.BADGE_TIERS.map(function (bt) {
+      var all = FC.BADGES.filter(function (b) { return !b.special && FC.badgeTier(DATA.probs[b.id] || 0).id === bt.id; }), got = all.filter(function (b) { return btiers[b.id]; }).length;
+      if (!all.length) return '';
+      return '<div class="bar-row tier-' + bt.id + '"><span>' + bt.name + '</span><div class="trk"><i style="width:' + (got / all.length * 100).toFixed(1) + '%"></i></div><em>' + got + '/' + all.length + '</em></div>';
+    }).join('') + '</div>';
+    h += '<h3 class="sub">Recent rolls</h3><ol class="hist" reversed>' + hist.slice(-14).reverse().map(function (x) {
+      return '<li><span>' + (TIER_SQUARE[x.nt.id] || '') + '</span><div>' + (x.p ? esc(pname(x.p)) : pretty(x.fc)) + '<small>Day ' + dayNo(x.date) + ' · ' + pretty(x.fc) + '</small></div><b>' + fmtN(x.ep) + ' EP</b></li>';
+    }).join('') + '</ol>';
+    el.innerHTML = h;
+  }
+
+  /* ---------- Hall of fame ---------- */
+  var hofToken = 0;
+  async function renderHof() {
+    if (!SHOW_BOARD) return;
+    var el = $('#hofCard'), tok = ++hofToken;
+    if (!dbh || !myId || rows === null) { el.hidden = true; return; }
+    var vr; try { vr = await verifiedRolls(); } catch (e) { vr = []; }
+    if (tok !== hofToken) return;
+    if (!vr.length) { el.hidden = true; return; }
+    var scored = vr.map(function (c) { var v = scoreView(c.s, c.pl); return { c: c, v: v, ep: v.sc.total }; });
+    var bestDays = scored.slice().sort(function (a, b) { return b.ep - a.ep; }).slice(0, 5);
+    var hits = [];
+    scored.forEach(function (x) {
+      var r = null; x.v.sc.kept.forEach(function (b) { if (!b.special && (!r || b.p < r.p)) r = b; });
+      if (r) hits.push({ x: x, b: r });
+    });
+    hits.sort(function (a, b) { return a.b.p - b.b.p; }); hits = hits.slice(0, 5);
+    var byId = {}; vr.forEach(function (c) { (byId[c.id] = byId[c.id] || []).push(c.date); });
+    var streakList = Object.keys(byId).map(function (id) { return { id: id, n: bestRun(byId[id]) }; }).filter(function (s) { return s.n >= 2; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 5);
+    var ids = {}; bestDays.forEach(function (x) { ids[x.c.id] = 1; }); hits.forEach(function (x) { ids[x.x.c.id] = 1; }); streakList.forEach(function (s) { ids[s.id] = 1; });
+    var names = {}; try { if (userh && userh.profiles) names = await userh.profiles(Object.keys(ids)) || {}; } catch (e) {}
+    if (tok !== hofToken) return;
+    var nm = function (id) { return esc((names[id] && names[id].name) || (id === myId ? 'You' : 'Player')); };
+    var h = '<h2>Hall of fame</h2><h3>Biggest single days</h3><ol class="hist">' + bestDays.map(function (x) {
+      return '<li><span>' + (TIER_SQUARE[x.v.nt.id] || '') + '</span><div>' + nm(x.c.id) + '<small>' + esc(pname(x.c.pl)) + ' · Day ' + dayNo(x.c.date) + '</small></div><b>' + fmtN(x.ep) + ' EP</b></li>';
+    }).join('') + '</ol><h3>Rarest badges hit</h3><ol class="hist">' + hits.map(function (y) {
+      return '<li><span>' + (TIER_SQUARE[y.b.tier] || '') + '</span><div>' + nm(y.x.c.id) + '<small>' + esc(y.b.name) + ' · Day ' + dayNo(y.x.c.date) + '</small></div><b>' + oddsText(y.b) + '</b></li>';
+    }).join('') + '</ol>';
+    if (streakList.length) h += '<h3>Longest streaks</h3><ol class="hist">' + streakList.map(function (s) {
+      return '<li><span>🔥</span><div>' + nm(s.id) + '</div><b>' + s.n + ' days</b></li>';
+    }).join('') + '</ol>';
+    el.innerHTML = h; el.hidden = false;
+  }
+
+  /* ---------- tabs ---------- */
+  function showTab(name) {
+    if (TABS.indexOf(name) < 0) name = 'today';
+    TABS.forEach(function (t) {
+      var on = t === name;
+      $('#p-' + t).classList.toggle('on', on);
+      $('#t-' + t).setAttribute('aria-selected', on ? 'true' : 'false');
+      $('#t-' + t).tabIndex = on ? 0 : -1;
+    });
+    if (name === 'collection') renderCollection();
+    if (name === 'stats') { renderStatsTab(); renderBackup(); }
+    if (name === 'compare') renderMine();
+  }
+  document.querySelectorAll('nav [data-tab]').forEach(function (b) {
+    b.addEventListener('click', function () { var n = b.getAttribute('data-tab'); try { history.replaceState(null, '', '#' + n); } catch (e) { try { location.hash = n; } catch (e2) {} } showTab(n); });
+    b.addEventListener('keydown', function (ev) {
+      var i = TABS.indexOf(b.getAttribute('data-tab')), j = ev.key === 'ArrowRight' ? i + 1 : ev.key === 'ArrowLeft' ? i - 1 : -1;
+      if (j < 0) return; j = (j + TABS.length) % TABS.length; $('#t-' + TABS[j]).focus(); $('#t-' + TABS[j]).click();
+    });
+  });
+  window.addEventListener('hashchange', function () { showTab(location.hash.slice(1)); });
+
+  /* ---------- clock ---------- */
+  function tick() {
+    var now = new Date(), next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1), s = Math.max(0, Math.floor((next - now.getTime()) / 1000));
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    $('#countdown').textContent = p(Math.floor(s / 3600)) + ':' + p(Math.floor(s % 3600 / 60)) + ':' + p(s % 60);
+    if (todayStr() !== shownDate && !spinning) renderToday();
+  }
+
+  /* ---------- start ---------- */
+  renderName(); renderToday(); renderRules();
+  $('#fcInput').value = pretty(EXAMPLE);
+  showCheck(EXAMPLE, 'Example code. Type any friend code above to replace it.');
+  showTab(location.hash.slice(1));
+  tick(); setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
