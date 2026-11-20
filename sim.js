@@ -56,8 +56,46 @@ const rmatch = rows.map(r => FC.matchAll(r[1], rctx(r)).map(b => b.id));
 const rc = {}; FC.BADGES.forEach(b => rc[b.id] = 0);
 rmatch.forEach(ids => ids.forEach(id => rc[id]++));
 // 3) mixed odds: what share of daily rolls match each badge
+// 2b) exact odds for the very rare badges. A random legal code is (essentially) uniform over 0 .. 128*2^32-1,
+// so for badges whose matches we can list, count them exactly instead of hoping the Monte Carlo hits them.
+const NMAX = 128 * 4294967296;
+const randP = {}; FC.BADGES.forEach(b => { randP[b.id] = counts[b.id] / N; });
+{
+  const EXACT = ['loop2','seq10','cube','sortdown','calc2','loop6','loop4','loop3','bpal3','binary','sortup','square','jenny','freestyle','seq8','tz6','tz9'];
+  const cand = new Set(), p12 = x => String(x).padStart(12, '0');
+  const add = x => { if (x >= 0 && x < NMAX) cand.add(x); };
+  for (let a = 0; a < 1e6; a++) { const h = String(a).padStart(6, '0'); add(Number(h + h)); }                  // period 6 (and 3, 2, 1)
+  for (let a = 0; a < 1e4; a++) { const h = String(a).padStart(4, '0'); add(Number(h + h + h)); }               // period 4
+  for (let a = 0; a < 1e3; a++) { const h = String(a).padStart(3, '0'); add(Number(h + h + h + h)); }           // period 3
+  const pal = []; for (let a = 0; a < 10; a++) for (let b = 0; b < 10; b++) pal.push('' + a + b + b + a);       // three palindromic blocks
+  for (const x of pal) for (const y of pal) for (const z of pal) add(Number(x + y + z));
+  for (let m = 0; m < 4096; m++) add(Number(m.toString(2).padStart(12, '0')));                                  // only 0s and 1s
+  (function up(prefix, last) { if (prefix.length === 12) { add(Number(prefix)); return; } for (let d = last; d < 10; d++) up(prefix + d, d); })('', 0);   // digits never go down
+  for (let k = 0; k * k < NMAX; k++) add(k * k);                                                                // perfect squares
+  for (let a = 0; a < 10; a++) for (let b = 0; b < 10; b++) add(Number((''+a+b).repeat(6)));                      // two digits alternating
+  for (let k = 0; k * k * k < NMAX; k++) add(k * k * k);                                                        // perfect cubes
+  (function dn(prefix, last) { if (prefix.length === 12) { add(Number(prefix)); return; } for (let d = last; d >= 0; d--) dn(prefix + d, d); })('', 9);   // digits never go up
+  for (let pos = 0; pos <= 2; pos++) for (const run of ['0123456789', '9876543210']) for (let k = 0; k < 100; k++) { const f = String(k).padStart(2, '0'); add(Number(f.slice(0, pos) + run + f.slice(pos))); }   // 10-digit run
+  for (const t of ['8675309', '1400999', '5318008']) { const free = 12 - t.length, F = Math.pow(10, free);                  // contains a 7-digit string
+    for (let pos = 0; pos <= free; pos++) for (let k = 0; k < F; k++) { const f = String(k).padStart(free, '0'); add(Number(f.slice(0, pos) + t + f.slice(pos))); } }
+  for (let pos = 0; pos <= 4; pos++) for (let st = 0; st < 10; st++) for (const dir of [1, -1]) {                // a run of 8 consecutive digits
+    let run = '', ok = true; for (let i = 0; i < 8; i++) { const d = st + dir * i; if (d < 0 || d > 9) { ok = false; break; } run += d; }
+    if (!ok) continue; for (let k = 0; k < 1e4; k++) { const f = String(k).padStart(4, '0'); add(Number(f.slice(0, pos) + run + f.slice(pos))); } }
+  for (let k = 0; k * 1e6 < NMAX; k++) add(k * 1e6);                                                            // 6+ trailing zeros
+  const ex = {}; EXACT.forEach(id => { ex[id] = 0; });
+  // a roll is a random profile ID in a random region, so a code is rolled with probability (regions where it is legal) / (4 * 2^32)
+  const DEN = 4 * 4294967296;
+  cand.forEach(x => {
+    const s = p12(x), hit = FC.matchAll(s).filter(b => b.id in ex);
+    if (!hit.length) return;
+    const w = FC.checksumRegions(s).length;
+    if (w) hit.forEach(b => { ex[b.id] += w; });
+  });
+  EXACT.forEach(id => { randP[id] = ex[id] / DEN; });
+  console.log('exact random odds (1 in):', EXACT.map(id => id + ' ' + (ex[id] ? Math.round(DEN / ex[id]) : 'none')).join(', '));
+}
 const probs = {};
-FC.BADGES.forEach(b => { probs[b.id] = RANDOM_SHARE * counts[b.id] / N + RACER_SHARE * rc[b.id] / nPool; });
+FC.BADGES.forEach(b => { probs[b.id] = RANDOM_SHARE * randP[b.id] + RACER_SHARE * rc[b.id] / nPool; });
 // 4) EP distribution of a daily roll, then a thinned CDF
 const hist = new Map(), add = (ep, w) => hist.set(ep, (hist.get(ep) || 0) + w);
 const epOf = ids => {

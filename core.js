@@ -155,7 +155,8 @@
     .forEach(function (x, i) { add('run' + x[0], x[1], 'run', i + 1, x[2], function (c) { return c.run >= x[0]; }); });
 
   [[4, 'Stairs', 'a 4-digit run counting up or down by 1'], [5, 'Long Stairs', 'a 5-digit run counting up or down by 1'],
-   [6, 'Escalator', 'a 6-digit run counting up or down by 1'], [8, 'Grand Staircase', 'an 8-digit run counting up or down by 1']]
+   [6, 'Escalator', 'a 6-digit run counting up or down by 1'], [8, 'Grand Staircase', 'an 8-digit run counting up or down by 1'],
+   [10, 'Full Ladder', 'a 10-digit run counting up or down by 1']]
     .forEach(function (x, i) { add('seq' + x[0], x[1], 'seq', i + 1, x[2], function (c) { return c.seq >= x[0]; }); });
 
   [[5, 'Mini Echo', 'a 5-digit palindrome hidden inside'], [6, 'Echo', 'a 6-digit palindrome hidden inside'],
@@ -171,6 +172,7 @@
   add('loop6', 'Twin Halves', 'loop', 1, 'the first 6 digits repeat', function (c) { return c.period === 6 || c.period === 3 || c.period === 2 || c.period === 1; });
   add('loop4', 'Three-Peat', 'loop', 2, 'one 4-digit block repeated 3 times', function (c) { return c.period === 4 || c.period === 2 || c.period === 1; });
   add('loop3', 'Four-Peat', 'loop', 3, 'a 3-digit pattern repeated 4 times', function (c) { return c.period === 3 || c.period === 1; });
+  add('loop2', 'Alternator', 'loop', 4, 'two digits alternating all the way', function (c) { return c.period === 2 || c.period === 1; });
 
   add('bpal1', 'Block Echo', 'bpal', 1, 'one 4-digit block is a palindrome', function (c) { return c.blockPal >= 1; });
   add('bpal2', 'Double Echo', 'bpal', 2, 'two 4-digit blocks are palindromes', function (c) { return c.blockPal >= 2; });
@@ -190,6 +192,7 @@
   add('leet', 'Leet', 'leet', 1, 'contains 1337', function (c) { return has(c, '1337'); });
   add('answer42', 'Answer to Everything', 'answer42', 1, 'contains 42', function (c) { return has(c, '42'); });
   add('calc', 'Calculator Joke', 'calc', 1, 'contains 8008', function (c) { return has(c, '8008'); });
+  add('calc2', 'Calculator Classic', 'calc', 2, 'contains 5318008', function (c) { return has(c, '5318008'); });
   add('lucky8', 'Lucky Eights', 'lucky8', 1, 'contains 888', function (c) { return has(c, '888'); });
   add('nines', 'WRLD', 'nines', 1, 'contains 999', function (c) { return has(c, '999'); });
   add('emergency', 'Emergency', 'emergency', 1, 'contains 911', function (c) { return has(c, '911'); });
@@ -199,6 +202,7 @@
   add('odyssey', 'Space Odyssey', 'odyssey', 1, 'contains 2001', function (c) { return has(c, '2001'); });
   add('binary', 'Binary Brain', 'binary', 1, 'only 0s and 1s', function (c) { return /^[01]+$/.test(c.s); });
   add('golden', 'Golden Ratio', 'golden', 1, 'contains 1618', function (c) { return has(c, '1618'); });
+  add('golden2', 'Golden Spiral', 'golden', 2, 'contains 161803', function (c) { return has(c, '161803'); });
   add('euler', 'Euler', 'euler', 1, 'contains 2718', function (c) { return has(c, '2718'); });
   add('euler2', 'Natural Log', 'euler', 2, 'contains 27182', function (c) { return has(c, '27182'); });
   add('birthday', 'Birthday', 'birthday', 1, 'contains 321', function (c) { return has(c, '321'); });
@@ -225,7 +229,9 @@
   add('superyear', 'Super Year', 'superyear', 1, 'contains 1985', function (c) { return has(c, '1985'); });
   add('pi1', 'Pi Day', 'pi', 1, 'contains 3141', function (c) { return has(c, '3141'); });
   add('pi2', 'Pi Slice', 'pi', 2, 'contains 31415', function (c) { return has(c, '31415'); });
+  add('pi3', 'Pi Pie', 'pi', 3, 'contains 314159', function (c) { return has(c, '314159'); });
   add('fib1', 'Fibonacci Start', 'fib', 1, 'contains 11235', function (c) { return has(c, '11235'); });
+  add('fib2', 'Fibonacci Run', 'fib', 2, 'contains 112358', function (c) { return has(c, '112358'); });
 
   [[5, 'Heavy Digit', 'one digit shows up 5 times'], [6, 'Digit Hoard', 'one digit shows up 6 times'], [7, 'Digit Flood', 'one digit shows up 7 times'], [8, 'Digit Monopoly', 'one digit shows up 8 times']]
     .forEach(function (x, i) { add('heavy' + x[0], x[1], 'heavy', i + 1, x[2], function (c) { return c.maxCount >= x[0]; }); });
@@ -248,6 +254,8 @@
   add('square', 'Perfect Square', 'square', 1, 'the code is a perfect square', function (c) { return c.isSquare; });
 
   add('sortup', 'Ascending Order', 'order', 1, 'digits never go down', function (c) { return c.sortedUp; });
+  add('sortdown', 'Descending Order', 'order', 1, 'digits never go up', function (c) { return c.sortedDown; });
+  add('cube', 'Perfect Cube', 'cube', 1, 'the code is a perfect cube', function (c) { return c.isCube; });
   add('alleven', 'All Even Digits', 'digitparity', 1, 'every digit is even', function (c) { return c.allEven; });
   add('allodd', 'All Odd Digits', 'digitparity', 1, 'every digit is odd', function (c) { return c.allOdd; });
   add('alllow', 'Low Digits', 'digitrange', 1, 'every digit is 4 or lower', function (c) { return c.allLow; });
