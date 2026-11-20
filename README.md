@@ -62,9 +62,13 @@ python3 tests/test_racer.py
 python3 tests/test_fx.py
 ```
 
-## Hosting
+## Website
 
-The built site is static: `index.html`, `fc/` and `miis_fc/`. It works on GitHub Pages or any static host. The page was built for Claude's artifact runtime, where a signed-in viewer can post to a shared database; elsewhere that part is simply absent and the rest of the game works. Before deploying, change `SHARE_URL` in `template.html` to your own address (it appears in copied results), then rebuild.
+The built site is static: `index.html`, `fc/` and `miis_fc/` (plus `404.html`, `og.png` and `.nojekyll`). It is served from the repo root with GitHub Pages at https://steperdd.github.io/fcdle/ (Settings, Pages, Deploy from a branch, `main`, `/ (root)`).
+
+The page was first built for Claude's artifact runtime, where a signed-in viewer can post to a shared database. On a normal website that part is simply absent and the rest of the game works. To host it somewhere else, change `SHARE_URL` and the address in the `<head>` of `template.html`, then run `node build.js`.
+
+`og.png` is the link preview image. Regenerate it from `tools/og.html` (a 1200x630 screenshot).
 
 ## Regenerating the racer list
 

@@ -3,7 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FCdle</title>
+<title>FCdle: a daily Mario Kart Wii friend code game</title>
+<meta name="description" content="Roll one real Mario Kart Wii friend code a day and see how rare it is. Collect badges, build a streak and compare rolls with friends.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="canonical" href="https://steperdd.github.io/fcdle/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='52'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="FCdle">
+<meta property="og:description" content="Roll one real Mario Kart Wii friend code a day and see how rare it is. Collect badges, build a streak and compare rolls with friends.">
+<meta property="og:url" content="https://steperdd.github.io/fcdle/">
+<meta property="og:image" content="https://steperdd.github.io/fcdle/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -239,6 +249,7 @@ footer { color: #6b6b73; font-size: 12px; text-align: center; max-width: 60ch; m
 @keyframes fxglow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 0%, transparent); } 25% { box-shadow: 0 0 46px 6px color-mix(in srgb, var(--c) 55%, transparent); } 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 0%, transparent); } }
 .backup textarea { width:100%; box-sizing:border-box; }
 .backup .row { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+footer a { color: inherit; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -353,7 +364,7 @@ footer { color: #6b6b73; font-size: 12px; text-align: center; max-width: 60ch; m
     </section>
   </main>
 
-  <footer>Unofficial fan project inspired by RNGdle, not affiliated with RNGdle, Retro Rewind (RWFC) or Nintendo. Racer names, friend codes and Miis come from the public RWFC VR leaderboard (a snapshot from November 20, 2026; Miis for 200 top racers only). Badges, EP values and odds are this game's own.</footer>
+  <footer>Unofficial fan project inspired by RNGdle, not affiliated with RNGdle, Retro Rewind (RWFC) or Nintendo. Racer names, friend codes and Miis come from the public RWFC VR leaderboard (a snapshot from November 20, 2026; Miis for 200 top racers only). Badges, EP values and odds are this game's own. <a href="https://github.com/Steperdd/fcdle" rel="noopener">Source on GitHub</a>.</footer>
 </div>
 
 <script>
@@ -458,7 +469,7 @@ const POOL = /*__POOL__*/;
   }
   var FAM_EMOJI = { run: '\ud83d\udd01', seq: '\ud83d\udd22', pal: '\ud83e\ude9e', div: '\ud83d\udd1f', sparse: '\u26aa', loop: '\ud83d\udd02', bpal: '\ud83e\ude9e', bmatch: '\ud83d\udc6f', nice: '\ud83d\ude0e', blaze: '\ud83c\udf3f', beast: '\ud83d\udc79', jackpot: '\ud83c\udfb0', leet: '\ud83d\udc7e', over9000: '\ud83d\udca5', bond: '\ud83d\udd75\ufe0f', cc150: '\ud83c\udfce\ufe0f', wii: '\ud83c\udfae', superyear: '\ud83d\udcc5', pi: '\ud83e\udd67', fib: '\ud83d\udc1a', heavy: '\u2696\ufe0f', sumlow: '\u2b07\ufe0f', sumhigh: '\u2b06\ufe0f', parity: '\u262f\ufe0f', div3: '3\ufe0f\u20e3', div7: '\ud83c\udfb0', div11: '\ud83d\udd5a', round: '\u2b55', lead0: '0\ufe0f\u20e3', prime: '\ud83d\udc8e', square: '\u2b1b', cube: '\ud83e\uddca', order: '\ud83d\udcc8', digitparity: '\u2696\ufe0f', digitrange: '\ud83c\udf9a\ufe0f', creator: '\ud83d\udc51', sixseven: '\ud83e\udd37', rank: '\ud83c\udfc1', vr: '\ud83d\udcc8', vrexact: '\ud83c\udf31', mii: '\ud83d\ude42', answer42: '\ud83c\udf0c', calc: '\ud83e\uddee', lucky8: '\ud83e\udde7', nines: '9\ufe0f\u20e3', emergency: '\ud83d\udea8', jenny: '\ud83d\udcde', apollo: '\ud83c\udf15', odyssey: '\ud83d\udef8', binary: '\ud83d\udcbe', golden: '\ud83c\udf3b', euler: '\ud83d\udcd0', birthday: '\ud83c\udf82', drum808: '\ud83e\udd41', hometown: '\ud83c\udfe0' };
   var TIER_SQUARE = { trash: '\ud83d\udfeb', common: '\u2b1c', uncommon: '\ud83d\udfe9', rare: '\ud83d\udfe6', epic: '\ud83d\udfea', anomaly: '\ud83d\udfe7', mythic: '\ud83d\udfe5', creator: '\ud83d\udfe8' };
-  var SHARE_URL = 'https://claude.ai/artifact/LVAmZPyxgxvTQJAbGx4Sj1';
+  var SHARE_URL = 'https://steperdd.github.io/fcdle/';
   function shareText(s, date, v, p) {
     // kept badges by EP, each followed by the lower levels of its family it also earned (like RNGdle's "earned" lines)
     var lines = [];
