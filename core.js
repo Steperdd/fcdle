@@ -191,7 +191,7 @@
   add('jackpot', 'Jackpot', 'jackpot', 1, 'contains 777', function (c) { return has(c, '777'); });
   add('leet', 'Leet', 'leet', 1, 'contains 1337', function (c) { return has(c, '1337'); });
   add('answer42', 'Answer to Everything', 'answer42', 1, 'contains 42', function (c) { return has(c, '42'); });
-  add('calc', 'Calculator Joke', 'calc', 1, 'contains 8008', function (c) { return has(c, '8008'); });
+  add('calc', 'Flip the Screen', 'calc', 1, 'contains 8008', function (c) { return has(c, '8008'); });
   add('calc2', 'Calculator Classic', 'calc', 2, 'contains 5318008', function (c) { return has(c, '5318008'); });
   add('lucky8', 'Lucky Eights', 'lucky8', 1, 'contains 888', function (c) { return has(c, '888'); });
   add('nines', 'WRLD', 'nines', 1, 'contains 999', function (c) { return has(c, '999'); });
@@ -220,7 +220,7 @@
   add('vr10k', 'Fresh Start', 'vrexact', 1, 'the racer has exactly 10,000 VR, the starting amount', function (c) { return c.vr === 10000; });
   add('travis', 'Travis', 'travis', 1, 'contains 90210', function (c) { return has(c, '90210'); });
   add('mineagain', 'Mine Again', 'mineagain', 1, 'contains 1738', function (c) { return has(c, '1738'); });
-  add('calcflip', 'Calculator Flip', 'calcflip', 1, 'contains 8008135', function (c) { return has(c, '8008135'); });
+  add('calcflip', 'Detention', 'calcflip', 1, 'contains 8008135', function (c) { return has(c, '8008135'); });
   add('y2012', 'Mayan Calendar', 'y2012', 1, 'contains 2012', function (c) { return has(c, '2012'); });
   add('y1999', 'Party Like It\'s 1999', 'y1999', 1, 'contains 1999', function (c) { return has(c, '1999'); });
   add('freestyle', 'Freestyle', 'freestyle', 1, 'contains 1400999', function (c) { return has(c, '1400999'); });
