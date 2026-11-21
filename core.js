@@ -291,6 +291,32 @@
     return B.filter(function (b) { return b.test(c); });
   }
 
+
+  /* A short "so close" line for a code: the rarest badge it narrowly missed, or null. */
+  function nearMiss(s, probs) {
+    var c = context(s), have = {}, cands = [];
+    matchAll(s).forEach(function (b) { have[b.family] = Math.max(have[b.family] || 0, b.lvl); });
+    B.forEach(function (b) {
+      if (b.special || (have[b.family] || 0) >= b.lvl) return;
+      var m = /^contains (\d{5,})$/.exec(b.desc);
+      if (m) {
+        for (var i = 0; i + m[1].length <= 12; i++) {
+          var diff = 0; for (var j = 0; j < m[1].length; j++) if (s.charAt(i + j) !== m[1].charAt(j)) diff++;
+          if (diff === 1) { cands.push({ b: b, text: 'One digit off ' + b.name + '.' }); break; }
+        }
+      }
+    });
+    [['run', c.run, 3, 'one more matching digit'], ['seq', c.seq, 3, 'one more step in the run']].forEach(function (f) {
+      if (f[1] < f[2]) return;
+      var next = null;
+      B.forEach(function (b) { if (b.family === f[0]) { var n = parseInt(b.id.slice(f[0].length), 10); if (n === f[1] + 1) next = b; } });
+      if (next && (have[next.family] || 0) < next.lvl) cands.push({ b: next, text: 'Just ' + f[3] + ' from ' + next.name + '.' });
+    });
+    if (!cands.length) return null;
+    cands.sort(function (a, z) { return (probs[a.b.id] || 0) - (probs[z.b.id] || 0); });
+    return { badge: cands[0].b, text: 'So close: ' + cands[0].text.charAt(0).toLowerCase() + cands[0].text.slice(1) };
+  }
+
   /* probs: {id: probability}. Returns kept/shadowed badges and the EP total. */
   function score(s, probs, x) {
     var matched = matchAll(s, x);
@@ -342,7 +368,7 @@
   var api = {
     REGIONS: REGIONS, RACER_DEN: 4, chkFor: chkFor,
     BADGES: B, BADGE_TIERS: BADGE_TIERS, SPECIAL_TIER: SPECIAL_TIER, epFor: epFor, P_FLOOR: P_FLOOR, NUMBER_TIERS: NUMBER_TIERS, md5: md5, checksumRegions: checksumRegions, build: build,
-    matchAll: matchAll, score: score, rank: rank, numberTier: numberTier, badgeTier: badgeTier, parse: parse, isPrime: isPrime
+    matchAll: matchAll, nearMiss: nearMiss, score: score, rank: rank, numberTier: numberTier, badgeTier: badgeTier, parse: parse, isPrime: isPrime
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FC = api;
 })(typeof window !== 'undefined' ? window : globalThis);

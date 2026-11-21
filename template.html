@@ -223,6 +223,7 @@ footer { color: #6b6b73; font-size: 12px; text-align: center; max-width: 60ch; m
 .bar-row em { font-style:normal; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
 .filters { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0; }
 .filters input, .filters select { flex:1 1 140px; min-width:0; background:var(--card2,#17171c); color:inherit; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; font-size:14px; }
+.near { margin:8px 0 0; font-size:13px; color:var(--muted); }
 .hist { list-style:none; margin:0; padding:0; }
 .hist li { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
 .hist li:first-child { border-top:0; }
@@ -513,7 +514,8 @@ const POOL = /*__POOL__*/;
     ticks.forEach(function (t) { if (t !== 95) h += '<span style="left:' + t + '%">' + t + '</span>'; });
     h += '</div></div><div class="pills">';
     sc.kept.forEach(function (b) { h += '<span class="pill tier-' + b.tier + '" title="' + esc(b.tierName + ': ' + b.desc + ', ' + oddsText(b)) + '">' + esc(b.name) + '<em>+' + fmtN(b.ep) + '</em></span>'; });
-    h += '</div><details class="more"><summary>Badge details</summary><ul class="badges">';
+    var nm = FC.nearMiss(s, DATA.probs);
+    h += '</div>' + (nm ? '<p class="near">' + esc(nm.text) + '</p>' : '') + '<details class="more"><summary>Badge details</summary><ul class="badges">';
     sc.kept.forEach(function (b) {
       h += '<li class="tier-' + b.tier + '"><span class="chip">' + b.tierName + '</span><div class="b-main"><strong>' + esc(b.name) + '</strong><span>' + esc(b.desc) + '</span></div><div class="b-side"><span class="ep">+' + b.ep + ' EP</span><span class="odds">' + oddsText(b) + '</span></div></li>';
     });
@@ -642,9 +644,10 @@ const POOL = /*__POOL__*/;
     } else {
       var v = scoreView(d.fc, d.p);
       card.innerHTML = (d.p ? miiHTML(d.p) : '') + plateHTML(d.fc, 'Day ' + dayNo(shownDate)) + whoHTML(d.p, true) + resultHTML(d.fc, v) +
-        '<p class="pct" id="pctNote" role="status" aria-live="polite"></p><div class="row"><button class="btn" data-share type="button">Copy result</button><button class="btn" data-copyfc type="button">Copy friend code</button><button class="btn" data-compare type="button">Compare with friends</button></div><p class="note" id="submitNote"></p>' +
+        '<p class="pct" id="pctNote" role="status" aria-live="polite"></p><div class="row"><button class="btn" data-share type="button">Copy result</button><button class="btn" data-copyfc type="button">Copy friend code</button><button class="btn" data-pic type="button">Share picture</button><button class="btn" data-compare type="button">Compare with friends</button></div><p class="note" id="submitNote"></p>' +
         '<textarea class="share" data-sharearea hidden readonly rows="4" aria-label="Result text"></textarea>';
       attachShare(card, shareText(d.fc, shownDate, v, d.p));
+      card.querySelector('[data-pic]').addEventListener('click', function () { sharePicture(d, v, shownDate, this); });
       card.querySelector('[data-copyfc]').addEventListener('click', function () { var a = card.querySelector('[data-sharearea]'); a.value = pretty(d.fc); copyText(pretty(d.fc), this, a, 'Copied'); });
       card.querySelector('[data-compare]').addEventListener('click', function () { $('#t-compare').click(); });
       markGold(card, v);
@@ -1153,6 +1156,44 @@ const POOL = /*__POOL__*/;
     var label = btn.textContent;
     function fallback() { area.focus(); area.select(); btn.textContent = 'Press Ctrl+C'; setTimeout(function () { btn.textContent = label; }, 2200); }
     try { navigator.clipboard.writeText(text).then(function () { btn.textContent = doneLabel || 'Copied'; setTimeout(function () { btn.textContent = label; }, 1800); }, fallback); } catch (e) { fallback(); }
+  }
+
+  /* ---------- Share picture ---------- */
+  var TIER_HEX = { trash: '#8b6b4a', common: '#9a9a9a', uncommon: '#4caf50', rare: '#3b82f6', epic: '#a855f7', anomaly: '#f59e0b', mythic: '#ef4444', creator: '#facc15' };
+  function drawCard(d, v, date) {
+    var W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    var g = cv.getContext('2d'), col = TIER_HEX[v.sc.kept.some(function (b) { return b.tier === 'creator'; }) ? 'creator' : v.nt.id] || '#d44dba', F = 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    g.fillStyle = '#0a0a0a'; g.fillRect(0, 0, W, H);
+    var gr = g.createRadialGradient(W / 2, 330, 40, W / 2, 330, 760); gr.addColorStop(0, col + '55'); gr.addColorStop(1, 'rgba(10,10,10,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.textAlign = 'center'; g.fillStyle = '#9a9a9a'; g.font = '600 34px ' + F; g.fillText('FCDLE  ·  DAY ' + dayNo(date), W / 2, 110);
+    g.fillStyle = '#ffffff'; g.font = '700 108px ui-monospace, Menlo, Consolas, monospace'; g.fillText(pretty(d.fc), W / 2, 300);
+    if (d.p) { g.fillStyle = '#cfcfcf'; g.font = '600 38px ' + F; g.fillText(pname(d.p), W / 2, 366); }
+    g.fillStyle = col; g.font = '800 150px ' + F; g.fillText(fmtN(v.sc.total), W / 2, 560);
+    g.fillStyle = '#9a9a9a'; g.font = '600 36px ' + F; g.fillText('ENTROPY POINTS', W / 2, 615);
+    g.fillStyle = col; var pw = 300; g.beginPath(); if (g.roundRect) g.roundRect(W / 2 - pw / 2, 660, pw, 84, 42); else g.rect(W / 2 - pw / 2, 660, pw, 84); g.fill();
+    g.fillStyle = '#0a0a0a'; g.font = '800 44px ' + F; g.fillText(v.nt.name.toUpperCase(), W / 2, 718);
+    var pct = v.r.mid * 100; g.fillStyle = '#cfcfcf'; g.font = '500 38px ' + F; g.fillText('Better than ' + (pct >= 99.9 ? '99.9' : pct.toFixed(pct >= 90 ? 1 : 0)) + '% of friend codes', W / 2, 810);
+    var y = 900; g.textAlign = 'left';
+    v.sc.kept.slice(0, 5).forEach(function (b) {
+      g.fillStyle = TIER_HEX[b.tier] || '#9a9a9a'; g.beginPath(); g.arc(130, y - 14, 14, 0, 7); g.fill();
+      g.fillStyle = '#ffffff'; g.font = '600 42px ' + F; g.fillText(b.name.length > 24 ? b.name.slice(0, 23) + '…' : b.name, 170, y);
+      g.textAlign = 'right'; g.fillStyle = '#cfcfcf'; g.font = '500 38px ' + F; g.fillText('+' + fmtN(b.ep), W - 130, y); g.textAlign = 'left'; y += 70;
+    });
+    if (v.sc.kept.length > 5) { g.fillStyle = '#9a9a9a'; g.font = '500 34px ' + F; g.fillText('+ ' + (v.sc.kept.length - 5) + ' more', 170, y); }
+    g.textAlign = 'center'; g.fillStyle = '#6b6b73'; g.font = '500 34px ' + F; g.fillText(SHARE_URL.replace('https://', ''), W / 2, H - 60);
+    return cv;
+  }
+  function sharePicture(d, v, date, btn) {
+    var label = btn.textContent;
+    try {
+      drawCard(d, v, date).toBlob(function (blob) {
+        if (!blob) { btn.textContent = 'Couldn’t make it'; setTimeout(function () { btn.textContent = label; }, 1800); return; }
+        var file = new File([blob], 'fcdle-day-' + dayNo(date) + '.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], text: 'FCdle day ' + dayNo(date) }).catch(function () {}); return; }
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000); btn.textContent = 'Saved'; setTimeout(function () { btn.textContent = label; }, 1800);
+      }, 'image/png');
+    } catch (e) { btn.textContent = 'Couldn’t make it'; setTimeout(function () { btn.textContent = label; }, 1800); }
   }
   function renderMine() {
     var el = $('#mineCard'), d = state.days[todayStr()];
