@@ -61,7 +61,7 @@ rmatch.forEach(ids => ids.forEach(id => rc[id]++));
 const NMAX = 128 * 4294967296;
 const randP = {}; FC.BADGES.forEach(b => { randP[b.id] = counts[b.id] / N; });
 {
-  const EXACT = ['loop2','seq10','cube','sortdown','calc2','loop6','loop4','loop3','bpal3','binary','sortup','square','jenny','freestyle','seq8','tz6','tz9'];
+  const EXACT = ['loop2','seq10','cube','sortdown','loop6','loop4','loop3','bpal3','binary','sortup','square','jenny','freestyle','seq8','tz6','tz9'];
   const cand = new Set(), p12 = x => String(x).padStart(12, '0');
   const add = x => { if (x >= 0 && x < NMAX) cand.add(x); };
   for (let a = 0; a < 1e6; a++) { const h = String(a).padStart(6, '0'); add(Number(h + h)); }                  // period 6 (and 3, 2, 1)
@@ -76,7 +76,7 @@ const randP = {}; FC.BADGES.forEach(b => { randP[b.id] = counts[b.id] / N; });
   for (let k = 0; k * k * k < NMAX; k++) add(k * k * k);                                                        // perfect cubes
   (function dn(prefix, last) { if (prefix.length === 12) { add(Number(prefix)); return; } for (let d = last; d >= 0; d--) dn(prefix + d, d); })('', 9);   // digits never go up
   for (let pos = 0; pos <= 2; pos++) for (const run of ['0123456789', '9876543210']) for (let k = 0; k < 100; k++) { const f = String(k).padStart(2, '0'); add(Number(f.slice(0, pos) + run + f.slice(pos))); }   // 10-digit run
-  for (const t of ['8675309', '1400999', '5318008']) { const free = 12 - t.length, F = Math.pow(10, free);                  // contains a 7-digit string
+  for (const t of ['8675309', '1400999']) { const free = 12 - t.length, F = Math.pow(10, free);                  // contains a 7-digit string
     for (let pos = 0; pos <= free; pos++) for (let k = 0; k < F; k++) { const f = String(k).padStart(free, '0'); add(Number(f.slice(0, pos) + t + f.slice(pos))); } }
   for (let pos = 0; pos <= 4; pos++) for (let st = 0; st < 10; st++) for (const dir of [1, -1]) {                // a run of 8 consecutive digits
     let run = '', ok = true; for (let i = 0; i < 8; i++) { const d = st + dir * i; if (d < 0 || d > 9) { ok = false; break; } run += d; }

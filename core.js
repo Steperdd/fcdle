@@ -192,7 +192,6 @@
   add('leet', 'Leet', 'leet', 1, 'contains 1337', function (c) { return has(c, '1337'); });
   add('answer42', 'Answer to Everything', 'answer42', 1, 'contains 42', function (c) { return has(c, '42'); });
   add('calc', 'Flip the Screen', 'calc', 1, 'contains 8008', function (c) { return has(c, '8008'); });
-  add('calc2', 'Calculator Classic', 'calc', 2, 'contains 5318008', function (c) { return has(c, '5318008'); });
   add('lucky8', 'Lucky Eights', 'lucky8', 1, 'contains 888', function (c) { return has(c, '888'); });
   add('nines', 'WRLD', 'nines', 1, 'contains 999', function (c) { return has(c, '999'); });
   add('emergency', 'Emergency', 'emergency', 1, 'contains 911', function (c) { return has(c, '911'); });
